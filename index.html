@@ -2,972 +2,1629 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Chat Room</title>
 
 <style>
+* {
+    box-sizing: border-box;
+}
+
 :root {
-  --bg:#0f172a;
-  --panel:#1e293b;
-  --panel2:#334155;
-  --text:#f8fafc;
-  --muted:#94a3b8;
-  --accent:#3b82f6;
-  --danger:#ef4444;
-  --border:#475569;
+    --bg: #111827;
+    --sidebar: #0f172a;
+    --panel: #1f2937;
+    --panel2: #374151;
+    --text: #f9fafb;
+    --muted: #9ca3af;
+    --accent: #5865f2;
+    --accent-hover: #4752c4;
+    --border: #374151;
+    --danger: #ef4444;
 }
 
-.light {
-  --bg:#f1f5f9;
-  --panel:#ffffff;
-  --panel2:#e2e8f0;
-  --text:#0f172a;
-  --muted:#64748b;
-  --border:#cbd5e1;
+body.light {
+    --bg: #f3f4f6;
+    --sidebar: #ffffff;
+    --panel: #ffffff;
+    --panel2: #e5e7eb;
+    --text: #111827;
+    --muted: #6b7280;
+    --border: #d1d5db;
 }
-
-* { box-sizing:border-box; }
 
 body {
-  margin:0;
-  height:100vh;
-  font-family:Arial,sans-serif;
-  background:var(--bg);
-  color:var(--text);
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: Arial, Helvetica, sans-serif;
+    height: 100vh;
+    overflow: hidden;
 }
 
-button,input {
-  font:inherit;
+button,
+input {
+    font: inherit;
 }
 
 button {
-  cursor:pointer;
+    cursor: pointer;
 }
 
 .app {
-  height:100vh;
-  display:flex;
+    display: flex;
+    height: 100vh;
 }
 
+/* SIDEBAR */
+
 .sidebar {
-  width:260px;
-  background:var(--panel);
-  border-right:1px solid var(--border);
-  display:flex;
-  flex-direction:column;
+    width: 270px;
+    background: var(--sidebar);
+    border-right: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    flex-shrink: 0;
+}
+
+.sidebar-header {
+    padding: 18px;
+    font-size: 20px;
+    font-weight: bold;
+    border-bottom: 1px solid var(--border);
 }
 
 .profile {
-  padding:18px;
-  border-bottom:1px solid var(--border);
-}
-
-.profile-row {
-  display:flex;
-  align-items:center;
-  gap:10px;
+    padding: 15px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    border-bottom: 1px solid var(--border);
 }
 
 .avatar {
-  width:42px;
-  height:42px;
-  border-radius:50%;
-  object-fit:cover;
-  background:var(--panel2);
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    object-fit: cover;
+    background: var(--panel2);
 }
 
-.avatar.big {
-  width:50px;
-  height:50px;
+.profile-name {
+    font-weight: bold;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
 .rooms {
-  flex:1;
-  overflow:auto;
-  padding:10px;
+    flex: 1;
+    overflow-y: auto;
+    padding: 10px;
 }
 
 .room {
-  width:100%;
-  padding:11px;
-  margin-bottom:5px;
-  border:0;
-  border-radius:8px;
-  text-align:left;
-  background:transparent;
-  color:var(--text);
+    padding: 11px 12px;
+    border-radius: 7px;
+    margin-bottom: 4px;
+    cursor: pointer;
+    color: var(--muted);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
 }
 
-.room:hover,
+.room:hover {
+    background: var(--panel);
+    color: var(--text);
+}
+
 .room.active {
-  background:var(--panel2);
+    background: var(--accent);
+    color: white;
 }
 
-.room-count {
-  float:right;
-  background:var(--accent);
-  border-radius:20px;
-  padding:2px 7px;
-  font-size:11px;
+.room-name {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
 }
 
-.sidebar-buttons {
-  padding:12px;
+.unread {
+    background: var(--danger);
+    color: white;
+    border-radius: 12px;
+    min-width: 20px;
+    padding: 2px 6px;
+    font-size: 11px;
+    text-align: center;
 }
 
-.sidebar button,
-.modal button,
-.composer button {
-  border:0;
-  border-radius:8px;
-  padding:10px 13px;
-  background:var(--accent);
-  color:white;
+.sidebar-bottom {
+    padding: 10px;
+    border-top: 1px solid var(--border);
 }
 
-.secondary {
-  background:var(--panel2) !important;
+.sidebar-button {
+    width: 100%;
+    padding: 10px;
+    margin-bottom: 7px;
+    border: 0;
+    border-radius: 7px;
+    background: var(--panel);
+    color: var(--text);
 }
 
-.chat {
-  flex:1;
-  display:flex;
-  flex-direction:column;
-  min-width:0;
+.sidebar-button:hover {
+    background: var(--panel2);
+}
+
+/* MAIN */
+
+.main {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
 }
 
 .chat-header {
-  height:64px;
-  padding:10px 16px;
-  background:var(--panel);
-  border-bottom:1px solid var(--border);
-  display:flex;
-  align-items:center;
-  justify-content:space-between;
+    height: 64px;
+    padding: 0 18px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    border-bottom: 1px solid var(--border);
+    background: var(--panel);
 }
 
-.members {
-  display:flex;
-  align-items:center;
-  gap:5px;
+.menu-button {
+    display: none;
+    background: transparent;
+    border: 0;
+    color: var(--text);
+    font-size: 24px;
 }
 
-.member-avatar {
-  width:30px;
-  height:30px;
-  border-radius:50%;
-  object-fit:cover;
+.chat-title {
+    font-size: 18px;
+    font-weight: bold;
 }
+
+.connection-status {
+    margin-left: auto;
+    font-size: 12px;
+    color: var(--muted);
+}
+
+.status-dot {
+    display: inline-block;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: #22c55e;
+    margin-right: 5px;
+}
+
+.status-dot.offline {
+    background: #ef4444;
+}
+
+/* MESSAGES */
 
 .messages {
-  flex:1;
-  overflow:auto;
-  padding:20px;
+    flex: 1;
+    overflow-y: auto;
+    padding: 20px;
 }
 
 .message {
-  display:flex;
-  gap:10px;
-  margin-bottom:17px;
+    display: flex;
+    gap: 12px;
+    margin-bottom: 18px;
+    max-width: 900px;
+}
+
+.message-avatar {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    object-fit: cover;
+    flex-shrink: 0;
 }
 
 .message-content {
-  max-width:75%;
+    min-width: 0;
 }
 
-.message-name {
-  font-weight:bold;
-  font-size:14px;
+.message-top {
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+    margin-bottom: 3px;
+}
+
+.message-user {
+    font-weight: bold;
 }
 
 .message-time {
-  color:var(--muted);
-  font-size:11px;
-  margin-left:7px;
+    font-size: 11px;
+    color: var(--muted);
 }
 
 .message-text {
-  margin-top:4px;
-  white-space:pre-wrap;
-  overflow-wrap:anywhere;
+    word-wrap: break-word;
+    white-space: pre-wrap;
+    line-height: 1.45;
 }
 
 .message-actions {
-  margin-top:4px;
+    display: flex;
+    gap: 5px;
+    margin-top: 6px;
 }
 
 .message-actions button {
-  border:0;
-  background:transparent;
-  color:var(--muted);
-  font-size:11px;
-  margin-right:5px;
+    border: 0;
+    background: var(--panel2);
+    color: var(--text);
+    padding: 4px 7px;
+    border-radius: 5px;
+    font-size: 11px;
 }
 
-.pinned {
-  border-left:3px solid #f59e0b;
-  padding-left:10px;
+.message-actions button:hover {
+    opacity: .8;
 }
 
-.system {
-  text-align:center;
-  color:var(--muted);
-  font-size:13px;
-  margin:12px;
+.empty {
+    text-align: center;
+    color: var(--muted);
+    margin-top: 80px;
 }
 
-.composer {
-  padding:12px;
-  background:var(--panel);
-  border-top:1px solid var(--border);
-  display:flex;
-  gap:8px;
+/* INPUT */
+
+.input-area {
+    padding: 15px;
+    border-top: 1px solid var(--border);
+    background: var(--panel);
 }
 
-.composer input,
-.modal input {
-  flex:1;
-  border:1px solid var(--border);
-  border-radius:8px;
-  padding:11px;
-  background:var(--bg);
-  color:var(--text);
-  outline:none;
+.input-row {
+    display: flex;
+    gap: 8px;
 }
 
-.emoji {
-  background:var(--panel2) !important;
+.message-input {
+    flex: 1;
+    min-width: 0;
+    background: var(--bg);
+    color: var(--text);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 12px;
+    outline: none;
 }
 
-.modal-bg {
-  position:fixed;
-  inset:0;
-  background:rgba(0,0,0,.65);
-  display:none;
-  align-items:center;
-  justify-content:center;
-  padding:20px;
+.message-input:focus {
+    border-color: var(--accent);
+}
+
+.send-button {
+    background: var(--accent);
+    color: white;
+    border: 0;
+    border-radius: 8px;
+    padding: 0 20px;
+    font-weight: bold;
+}
+
+.send-button:hover {
+    background: var(--accent-hover);
+}
+
+/* MEMBERS */
+
+.members-bar {
+    display: flex;
+    gap: 5px;
+    margin-left: 10px;
+}
+
+.member-avatar {
+    width: 27px;
+    height: 27px;
+    border-radius: 50%;
+    object-fit: cover;
+}
+
+/* MODAL */
+
+.modal-background {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,.7);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 100;
 }
 
 .modal {
-  width:100%;
-  max-width:430px;
-  background:var(--panel);
-  border-radius:14px;
-  padding:22px;
+    width: min(430px, calc(100% - 30px));
+    background: var(--panel);
+    border-radius: 12px;
+    padding: 25px;
 }
 
 .modal h2 {
-  margin-top:0;
+    margin-top: 0;
 }
 
 .modal input {
-  width:100%;
-  margin-bottom:10px;
+    width: 100%;
+    padding: 12px;
+    margin-bottom: 12px;
+    border: 1px solid var(--border);
+    background: var(--bg);
+    color: var(--text);
+    border-radius: 7px;
 }
 
-.emoji-grid {
-  display:flex;
-  flex-wrap:wrap;
-  gap:6px;
-  margin-bottom:12px;
-}
-
-.emoji-grid button {
-  background:var(--panel2);
-  border:0;
-  border-radius:7px;
-  padding:7px;
-  font-size:20px;
+.modal button {
+    width: 100%;
+    padding: 12px;
+    border: 0;
+    border-radius: 7px;
+    background: var(--accent);
+    color: white;
+    font-weight: bold;
 }
 
 .hidden {
-  display:none !important;
+    display: none !important;
 }
 
-.mobile-menu {
-  display:none;
+/* ROOM MODAL */
+
+.room-modal-buttons {
+    display: flex;
+    gap: 8px;
 }
 
-@media(max-width:700px) {
-  .sidebar {
-    position:fixed;
-    z-index:10;
-    left:-280px;
-    top:0;
-    bottom:0;
-    transition:.2s;
-  }
+.room-modal-buttons button {
+    flex: 1;
+}
 
-  .sidebar.open {
-    left:0;
-  }
+/* MOBILE */
 
-  .mobile-menu {
-    display:block;
-    background:transparent;
-    border:0;
-    color:var(--text);
-    font-size:23px;
-  }
+@media (max-width: 700px) {
+    .sidebar {
+        position: fixed;
+        left: -280px;
+        top: 0;
+        bottom: 0;
+        z-index: 50;
+        transition: left .2s;
+    }
 
-  .message-content {
-    max-width:85%;
-  }
+    .sidebar.open {
+        left: 0;
+    }
+
+    .menu-button {
+        display: block;
+    }
+
+    .members-bar {
+        display: none;
+    }
+
+    .messages {
+        padding: 15px 10px;
+    }
+
+    .message {
+        gap: 8px;
+    }
+
+    .message-avatar {
+        width: 34px;
+        height: 34px;
+    }
+
+    .input-area {
+        padding: 10px;
+    }
+
+    .send-button {
+        padding: 0 14px;
+    }
 }
 </style>
 </head>
 
 <body>
 
-<div id="loginModal" class="modal-bg" style="display:flex">
-  <div class="modal">
-    <h2>Join Chat</h2>
-
-    <input id="username" maxlength="24" placeholder="Display name">
-
-    <input id="avatarUrl" placeholder="Avatar image URL (optional)">
-
-    <button id="joinBtn">Continue</button>
-  </div>
-</div>
-
-
-<div id="roomModal" class="modal-bg">
-  <div class="modal">
-    <h2>Create or Join Room</h2>
-
-    <input id="roomName" maxlength="40" placeholder="Room name">
-
-    <input id="roomCode" maxlength="30" placeholder="Room code">
-
-    <button id="createRoom">Create Room</button>
-    <button id="cancelRoom" class="secondary">Cancel</button>
-
-    <hr>
-
-    <input id="joinCode" maxlength="30" placeholder="Existing room code">
-
-    <button id="joinRoom">Join Room</button>
-  </div>
-</div>
-
-
 <div class="app">
 
-  <aside id="sidebar" class="sidebar">
+    <!-- SIDEBAR -->
+    <aside class="sidebar" id="sidebar">
 
-    <div class="profile">
-      <div class="profile-row">
-        <img id="myAvatar" class="avatar">
-        <div>
-          <strong id="myName"></strong>
-          <div style="color:var(--muted);font-size:12px">Online</div>
+        <div class="sidebar-header">
+            💬 Chat Room
         </div>
-      </div>
+
+        <div class="profile">
+            <img id="profileAvatar" class="avatar" src="">
+            <div>
+                <div id="profileName" class="profile-name">Guest</div>
+                <small style="color:var(--muted)">Online</small>
+            </div>
+        </div>
+
+        <div class="rooms" id="rooms"></div>
+
+        <div class="sidebar-bottom">
+            <button class="sidebar-button" onclick="createRoom()">
+                ＋ New Room
+            </button>
+
+            <button class="sidebar-button" onclick="toggleTheme()">
+                🌓 Theme
+            </button>
+        </div>
+
+    </aside>
+
+    <!-- MAIN -->
+    <main class="main">
+
+        <header class="chat-header">
+
+            <button class="menu-button" onclick="toggleSidebar()">
+                ☰
+            </button>
+
+            <div class="chat-title" id="chatTitle">
+                #general
+            </div>
+
+            <div class="members-bar" id="membersBar"></div>
+
+            <div class="connection-status">
+                <span id="statusDot" class="status-dot"></span>
+                <span id="statusText">Connected</span>
+            </div>
+
+        </header>
+
+        <div class="messages" id="messages"></div>
+
+        <div class="input-area">
+
+            <div class="input-row">
+
+                <input
+                    id="messageInput"
+                    class="message-input"
+                    placeholder="Message #general"
+                    autocomplete="off"
+                >
+
+                <button
+                    class="send-button"
+                    onclick="sendMessage()"
+                >
+                    Send
+                </button>
+
+            </div>
+
+        </div>
+
+    </main>
+
+</div>
+
+
+<!-- LOGIN MODAL -->
+
+<div class="modal-background" id="loginModal">
+
+    <div class="modal">
+
+        <h2>Join the chat</h2>
+
+        <p style="color:var(--muted)">
+            Choose a display name and optional avatar.
+        </p>
+
+        <input
+            id="nameInput"
+            placeholder="Display name"
+            maxlength="30"
+        >
+
+        <input
+            id="avatarInput"
+            placeholder="Avatar URL (optional)"
+        >
+
+        <button onclick="login()">
+            Enter Chat
+        </button>
+
     </div>
 
-    <div id="rooms" class="rooms"></div>
+</div>
 
-    <div class="sidebar-buttons">
-      <button id="newRoom">＋ New Room</button>
-      <button id="theme" class="secondary">🌙 Theme</button>
+
+<!-- ROOM MODAL -->
+
+<div class="modal-background hidden" id="roomModal">
+
+    <div class="modal">
+
+        <h2>Create a room</h2>
+
+        <input
+            id="roomNameInput"
+            placeholder="Room name"
+            maxlength="30"
+        >
+
+        <input
+            id="roomCodeInput"
+            placeholder="Room code"
+            maxlength="30"
+        >
+
+        <div class="room-modal-buttons">
+
+            <button onclick="confirmCreateRoom()">
+                Create
+            </button>
+
+            <button
+                onclick="closeRoomModal()"
+                style="background:var(--panel2)"
+            >
+                Cancel
+            </button>
+
+        </div>
+
     </div>
-
-  </aside>
-
-
-  <main class="chat">
-
-    <header class="chat-header">
-
-      <button id="mobileMenu" class="mobile-menu">☰</button>
-
-      <div>
-        <strong id="roomTitle">Chat</strong>
-        <div id="roomCodeDisplay" style="font-size:11px;color:var(--muted)"></div>
-      </div>
-
-      <div id="members" class="members"></div>
-
-    </header>
-
-
-    <section id="messages" class="messages"></section>
-
-
-    <form id="composer" class="composer">
-
-      <button type="button" id="emoji" class="emoji">😀</button>
-
-      <input
-        id="messageInput"
-        maxlength="500"
-        placeholder="Type a message..."
-        autocomplete="off"
-      >
-
-      <button type="submit">Send</button>
-
-    </form>
-
-  </main>
 
 </div>
 
 
 <script>
 
+/* =========================
+   STATE
+========================= */
+
+let username = "";
+let avatar = "";
+
+let currentRoom = "general";
+
 let socket = null;
 
-let me = {
-  id: crypto.randomUUID(),
-  name: "",
-  avatar: ""
-};
+let messages = [];
 
-let currentRoom = null;
-let rooms = [];
+let members = [];
 
-const $ = id => document.getElementById(id);
+let rooms = [
+    {
+        name: "General",
+        code: "general"
+    }
+];
 
-const loginModal = $("loginModal");
-const roomModal = $("roomModal");
+let unread = {};
 
-function avatarFallback(name) {
-  const letter = encodeURIComponent(
-    (name || "?").charAt(0).toUpperCase()
-  );
+let reconnectTimer = null;
 
-  return `https://ui-avatars.com/api/?name=${letter}&background=3b82f6&color=fff`;
+
+/* =========================
+   ELEMENTS
+========================= */
+
+const messagesElement =
+    document.getElementById("messages");
+
+const roomsElement =
+    document.getElementById("rooms");
+
+const messageInput =
+    document.getElementById("messageInput");
+
+const chatTitle =
+    document.getElementById("chatTitle");
+
+const statusText =
+    document.getElementById("statusText");
+
+const statusDot =
+    document.getElementById("statusDot");
+
+const membersBar =
+    document.getElementById("membersBar");
+
+
+/* =========================
+   AVATAR
+========================= */
+
+function getAvatar(name, customAvatar) {
+
+    if (customAvatar && customAvatar.trim()) {
+        return customAvatar;
+    }
+
+    return "https://ui-avatars.com/api/?name=" +
+        encodeURIComponent(name) +
+        "&background=5865f2&color=fff";
 }
 
 
-function addSystem(text) {
-  const el = document.createElement("div");
+/* =========================
+   LOGIN
+========================= */
 
-  el.className = "system";
-  el.textContent = text;
+function login() {
 
-  $("messages").appendChild(el);
+    const name =
+        document.getElementById("nameInput")
+            .value
+            .trim();
 
-  $("messages").scrollTop =
-    $("messages").scrollHeight;
+    const avatarUrl =
+        document.getElementById("avatarInput")
+            .value
+            .trim();
+
+    if (!name) {
+        alert("Please enter a display name.");
+        return;
+    }
+
+    username = name;
+    avatar = avatarUrl;
+
+    localStorage.setItem(
+        "chat_username",
+        username
+    );
+
+    localStorage.setItem(
+        "chat_avatar",
+        avatar
+    );
+
+    document.getElementById("profileName")
+        .textContent = username;
+
+    document.getElementById("profileAvatar")
+        .src = getAvatar(username, avatar);
+
+    document.getElementById("loginModal")
+        .classList.add("hidden");
+
+    connect();
 }
 
 
-function addMessage(msg) {
+/* =========================
+   AUTO LOGIN
+========================= */
 
-  const wrapper = document.createElement("div");
-  wrapper.className = "message";
+function loadSavedUser() {
 
-  if (msg.pinned) {
-    wrapper.classList.add("pinned");
-  }
+    const savedName =
+        localStorage.getItem("chat_username");
 
-  const img = document.createElement("img");
+    const savedAvatar =
+        localStorage.getItem("chat_avatar");
 
-  img.className = "avatar";
+    if (savedName) {
 
-  img.src =
-    msg.avatar ||
-    avatarFallback(msg.username);
+        username = savedName;
+        avatar = savedAvatar || "";
 
-  const content =
-    document.createElement("div");
+        document.getElementById("profileName")
+            .textContent = username;
 
-  content.className = "message-content";
+        document.getElementById("profileAvatar")
+            .src = getAvatar(username, avatar);
 
-  const top =
-    document.createElement("div");
+        document.getElementById("loginModal")
+            .classList.add("hidden");
 
-  const name =
-    document.createElement("span");
+        connect();
 
-  name.className = "message-name";
-  name.textContent = msg.username;
+    } else {
 
-  const time =
-    document.createElement("span");
-
-  time.className = "message-time";
-
-  time.textContent =
-    new Date(msg.created_at)
-      .toLocaleTimeString([], {
-        hour:"numeric",
-        minute:"2-digit"
-      });
-
-  top.appendChild(name);
-  top.appendChild(time);
-
-  const text =
-    document.createElement("div");
-
-  text.className = "message-text";
-  text.textContent = msg.message;
-
-  content.appendChild(top);
-  content.appendChild(text);
+        document.getElementById("loginModal")
+            .classList.remove("hidden");
+    }
+}
 
 
-  if (msg.username === me.name || me.admin) {
+/* =========================
+   WEBSOCKET
+========================= */
 
-    const actions =
-      document.createElement("div");
+function connect() {
 
-    actions.className =
-      "message-actions";
+    if (socket) {
+        try {
+            socket.close();
+        } catch {}
+    }
 
+    setStatus(false, "Connecting...");
 
-    if (msg.username === me.name) {
+    const protocol =
+        location.protocol === "https:"
+            ? "wss:"
+            : "ws:";
 
-      const edit =
-        document.createElement("button");
+    const url =
+        protocol +
+        "//" +
+        location.host +
+        "/api/ws?room=" +
+        encodeURIComponent(currentRoom) +
+        "&name=" +
+        encodeURIComponent(username) +
+        "&avatar=" +
+        encodeURIComponent(avatar);
 
-      edit.textContent = "Edit";
-
-      edit.onclick = () => {
-
-        const newText =
-          prompt("Edit message:", msg.message);
-
-        if (!newText) return;
-
-        socket.send(JSON.stringify({
-          type:"edit",
-          id:msg.id,
-          message:newText
-        }));
-      };
-
-      actions.appendChild(edit);
+    socket = new WebSocket(url);
 
 
-      const del =
-        document.createElement("button");
+    socket.onopen = () => {
 
-      del.textContent = "Delete";
+        setStatus(true, "Connected");
 
-      del.onclick = () => {
+        console.log(
+            "Connected to room:",
+            currentRoom
+        );
 
-        socket.send(JSON.stringify({
-          type:"delete",
-          id:msg.id
-        }));
-      };
+    };
 
-      actions.appendChild(del);
+
+    /*
+     * IMPORTANT:
+     * Everything received from the server is
+     * immediately rendered here.
+     *
+     * This is what makes the chat live.
+     */
+
+    socket.onmessage = (event) => {
+
+        try {
+
+            const data =
+                JSON.parse(event.data);
+
+
+            /* HISTORY */
+
+            if (data.type === "history") {
+
+                messages =
+                    data.messages || [];
+
+                renderMessages();
+
+                return;
+            }
+
+
+            /* NEW MESSAGE */
+
+            if (data.type === "message") {
+
+                const newMessage =
+                    data.message;
+
+                /*
+                 * Prevent duplicates.
+                 */
+                if (
+                    !messages.some(
+                        m => m.id === newMessage.id
+                    )
+                ) {
+
+                    messages.push(newMessage);
+
+                }
+
+                renderMessages();
+
+                /*
+                 * Automatically move to
+                 * newest message.
+                 */
+                requestAnimationFrame(() => {
+
+                    messagesElement.scrollTop =
+                        messagesElement.scrollHeight;
+
+                });
+
+                /*
+                 * If the user is looking at another
+                 * browser tab, show unread count.
+                 */
+                if (document.hidden) {
+
+                    unread[currentRoom] =
+                        (unread[currentRoom] || 0) + 1;
+
+                    renderRooms();
+                    updatePageTitle();
+
+                }
+
+                return;
+            }
+
+
+            /* EDIT */
+
+            if (data.type === "edit") {
+
+                const message =
+                    messages.find(
+                        m => m.id === data.id
+                    );
+
+                if (message) {
+
+                    message.message =
+                        data.message;
+
+                    renderMessages();
+                }
+
+                return;
+            }
+
+
+            /* DELETE */
+
+            if (data.type === "delete") {
+
+                messages =
+                    messages.filter(
+                        m => m.id !== data.id
+                    );
+
+                renderMessages();
+
+                return;
+            }
+
+
+            /* PIN */
+
+            if (data.type === "pin") {
+
+                const message =
+                    messages.find(
+                        m => m.id === data.id
+                    );
+
+                if (message) {
+
+                    message.pinned =
+                        data.pinned;
+
+                    renderMessages();
+                }
+
+                return;
+            }
+
+
+            /* MEMBERS */
+
+            if (data.type === "members") {
+
+                members =
+                    data.members || [];
+
+                renderMembers();
+
+                return;
+            }
+
+
+            /* MEMBER JOIN */
+
+            if (data.type === "member_joined") {
+
+                renderMembers();
+
+                return;
+            }
+
+
+            /* MEMBER LEFT */
+
+            if (data.type === "member_left") {
+
+                renderMembers();
+
+                return;
+            }
+
+
+        } catch (error) {
+
+            console.error(
+                "WebSocket error:",
+                error
+            );
+
+        }
+
+    };
+
+
+    socket.onclose = () => {
+
+        setStatus(false, "Disconnected");
+
+        console.log(
+            "Disconnected. Reconnecting..."
+        );
+
+        clearTimeout(reconnectTimer);
+
+        reconnectTimer =
+            setTimeout(() => {
+
+                connect();
+
+            }, 2000);
+
+    };
+
+
+    socket.onerror = () => {
+
+        setStatus(false, "Connection error");
+
+    };
+}
+
+
+/* =========================
+   STATUS
+========================= */
+
+function setStatus(online, text) {
+
+    statusText.textContent = text;
+
+    if (online) {
+
+        statusDot.classList.remove(
+            "offline"
+        );
+
+    } else {
+
+        statusDot.classList.add(
+            "offline"
+        );
+
+    }
+}
+
+
+/* =========================
+   SEND MESSAGE
+========================= */
+
+function sendMessage() {
+
+    const text =
+        messageInput.value.trim();
+
+    if (!text) return;
+
+    if (
+        !socket ||
+        socket.readyState !== WebSocket.OPEN
+    ) {
+
+        alert("Not connected to the chat yet.");
+
+        return;
+    }
+
+    socket.send(
+        JSON.stringify({
+            type: "message",
+            message: text
+        })
+    );
+
+    messageInput.value = "";
+
+    messageInput.focus();
+}
+
+
+/* ENTER TO SEND */
+
+messageInput.addEventListener(
+    "keydown",
+    event => {
+
+        if (
+            event.key === "Enter" &&
+            !event.shiftKey
+        ) {
+
+            event.preventDefault();
+
+            sendMessage();
+
+        }
+
+    }
+);
+
+
+/* =========================
+   RENDER MESSAGES
+========================= */
+
+function renderMessages() {
+
+    if (!messages.length) {
+
+        messagesElement.innerHTML =
+            `<div class="empty">
+                No messages yet.<br>
+                Start the conversation!
+            </div>`;
+
+        return;
     }
 
 
-    const pin =
-      document.createElement("button");
+    messagesElement.innerHTML =
+        messages.map(message => {
 
-    pin.textContent =
-      msg.pinned ? "Unpin" : "Pin";
+            const image =
+                getAvatar(
+                    message.username,
+                    message.avatar
+                );
 
-    pin.onclick = () => {
+            const time =
+                new Date(
+                    message.created_at
+                ).toLocaleTimeString(
+                    [],
+                    {
+                        hour: "numeric",
+                        minute: "2-digit"
+                    }
+                );
 
-      socket.send(JSON.stringify({
-        type:"pin",
-        id:msg.id
-      }));
-    };
+            const safeText =
+                escapeHTML(
+                    message.message
+                );
 
-    actions.appendChild(pin);
-
-    content.appendChild(actions);
-  }
+            const isMine =
+                message.username === username;
 
 
-  wrapper.appendChild(img);
-  wrapper.appendChild(content);
+            return `
+                <div
+                    class="message"
+                    data-id="${message.id}"
+                >
 
-  $("messages").appendChild(wrapper);
+                    <img
+                        class="message-avatar"
+                        src="${escapeAttribute(image)}"
+                        onerror="this.src='https://ui-avatars.com/api/?name=User'"
+                    >
 
-  $("messages").scrollTop =
-    $("messages").scrollHeight;
+                    <div class="message-content">
+
+                        <div class="message-top">
+
+                            <span class="message-user">
+                                ${escapeHTML(message.username)}
+                            </span>
+
+                            <span class="message-time">
+                                ${time}
+                            </span>
+
+                            ${
+                                message.pinned
+                                ? `<span style="font-size:12px">
+                                    📌
+                                  </span>`
+                                : ""
+                            }
+
+                        </div>
+
+                        <div class="message-text">
+                            ${safeText}
+                        </div>
+
+                        ${
+                            isMine
+                            ? `
+                            <div class="message-actions">
+
+                                <button
+                                    onclick="editMessage(${message.id})"
+                                >
+                                    Edit
+                                </button>
+
+                                <button
+                                    onclick="deleteMessage(${message.id})"
+                                >
+                                    Delete
+                                </button>
+
+                                <button
+                                    onclick="pinMessage(${message.id})"
+                                >
+                                    ${message.pinned ? "Unpin" : "Pin"}
+                                </button>
+
+                            </div>
+                            `
+                            : ""
+                        }
+
+                    </div>
+
+                </div>
+            `;
+
+        }).join("");
 }
 
+
+/* =========================
+   EDIT
+========================= */
+
+function editMessage(id) {
+
+    const message =
+        messages.find(
+            m => m.id === id
+        );
+
+    if (!message) return;
+
+    const newText =
+        prompt(
+            "Edit message:",
+            message.message
+        );
+
+    if (
+        newText === null ||
+        !newText.trim()
+    ) return;
+
+    if (
+        socket &&
+        socket.readyState === WebSocket.OPEN
+    ) {
+
+        socket.send(
+            JSON.stringify({
+                type: "edit",
+                id: id,
+                message: newText.trim()
+            })
+        );
+
+    }
+}
+
+
+/* =========================
+   DELETE
+========================= */
+
+function deleteMessage(id) {
+
+    if (
+        !confirm(
+            "Delete this message?"
+        )
+    ) return;
+
+    if (
+        socket &&
+        socket.readyState === WebSocket.OPEN
+    ) {
+
+        socket.send(
+            JSON.stringify({
+                type: "delete",
+                id: id
+            })
+        );
+
+    }
+}
+
+
+/* =========================
+   PIN
+========================= */
+
+function pinMessage(id) {
+
+    if (
+        socket &&
+        socket.readyState === WebSocket.OPEN
+    ) {
+
+        socket.send(
+            JSON.stringify({
+                type: "pin",
+                id: id
+            })
+        );
+
+    }
+}
+
+
+/* =========================
+   MEMBERS
+========================= */
+
+function renderMembers() {
+
+    membersBar.innerHTML =
+        members
+            .slice(0, 8)
+            .map(member => {
+
+                return `
+                    <img
+                        class="member-avatar"
+                        title="${escapeAttribute(member.username)}"
+                        src="${escapeAttribute(
+                            getAvatar(
+                                member.username,
+                                member.avatar
+                            )
+                        )}"
+                    >
+                `;
+
+            })
+            .join("");
+}
+
+
+/* =========================
+   ROOMS
+========================= */
 
 function renderRooms() {
 
-  $("rooms").innerHTML = "";
+    roomsElement.innerHTML =
+        rooms.map(room => {
 
-  for (const room of rooms) {
+            const count =
+                unread[room.code] || 0;
 
-    const button =
-      document.createElement("button");
+            return `
+                <div
+                    class="room ${
+                        room.code === currentRoom
+                        ? "active"
+                        : ""
+                    }"
+                    onclick="joinRoom('${escapeAttribute(room.code)}')"
+                >
 
-    button.className =
-      "room" +
-      (currentRoom?.code === room.code
-        ? " active"
-        : "");
+                    <span class="room-name">
+                        # ${escapeHTML(room.name)}
+                    </span>
 
-    button.textContent =
-      "# " + room.name;
+                    ${
+                        count
+                        ? `<span class="unread">${count}</span>`
+                        : ""
+                    }
 
-    if (room.unread) {
+                </div>
+            `;
 
-      const count =
-        document.createElement("span");
-
-      count.className =
-        "room-count";
-
-      count.textContent =
-        room.unread;
-
-      button.appendChild(count);
-    }
-
-    button.onclick = () => {
-
-      room.unread = 0;
-
-      connectRoom(room);
-
-      renderRooms();
-    };
-
-    $("rooms").appendChild(button);
-  }
+        }).join("");
 }
 
 
-function connectRoom(room) {
+/* =========================
+   JOIN ROOM
+========================= */
 
-  currentRoom = room;
+function joinRoom(code) {
 
-  if (socket) {
-    socket.close();
-  }
+    if (code === currentRoom) {
 
-  $("messages").innerHTML = "";
-
-  const protocol =
-    location.protocol === "https:"
-      ? "wss:"
-      : "ws:";
-
-  const url =
-    `${protocol}//${location.host}/api/ws` +
-    `?room=${encodeURIComponent(room.code)}` +
-    `&name=${encodeURIComponent(me.name)}` +
-    `&avatar=${encodeURIComponent(me.avatar)}`;
-
-  socket =
-    new WebSocket(url);
-
-
-  socket.onopen = () => {
-
-    $("roomTitle").textContent =
-      "# " + room.name;
-
-    $("roomCodeDisplay").textContent =
-      "Room code: " + room.code;
-
-    addSystem(
-      "Connected to #" + room.name
-    );
-  };
-
-
-  socket.onmessage = event => {
-
-    let data;
-
-    try {
-      data = JSON.parse(event.data);
-    } catch {
-      return;
-    }
-
-
-    if (data.type === "history") {
-
-      $("messages").innerHTML = "";
-
-      for (const msg of data.messages) {
-        addMessage(msg);
-      }
-
-      return;
-    }
-
-
-    if (data.type === "message") {
-
-      addMessage(data);
-
-      if (
-        currentRoom &&
-        document.hidden
-      ) {
-        currentRoom.unread =
-          (currentRoom.unread || 0) + 1;
+        unread[code] = 0;
 
         renderRooms();
-      }
 
-      return;
+        return;
     }
 
+    const room =
+        rooms.find(
+            r => r.code === code
+        );
 
-    if (data.type === "system") {
+    if (!room) return;
 
-      addSystem(data.message);
+    currentRoom = code;
 
-      return;
-    }
+    unread[code] = 0;
 
+    chatTitle.textContent =
+        "# " + room.name;
 
-    if (data.type === "members") {
+    messageInput.placeholder =
+        "Message #" + room.name;
 
-      $("members").innerHTML = "";
+    messages = [];
 
-      for (const member of data.members) {
+    members = [];
 
-        const img =
-          document.createElement("img");
+    renderMessages();
+    renderMembers();
+    renderRooms();
 
-        img.className =
-          "member-avatar";
+    /*
+     * Reconnect WebSocket to the new room.
+     */
+    connect();
 
-        img.title =
-          member.name;
-
-        img.src =
-          member.avatar ||
-          avatarFallback(member.name);
-
-        $("members").appendChild(img);
-      }
-
-      return;
-    }
-
-
-    if (data.type === "rooms") {
-
-      rooms = data.rooms;
-
-      renderRooms();
-
-      return;
-    }
-
-
-    if (data.type === "error") {
-
-      alert(data.message);
-
-      return;
-    }
-  };
-
-
-  socket.onclose = () => {
-
-    if (currentRoom === room) {
-      addSystem("Disconnected.");
-    }
-  };
-
-
-  renderRooms();
+    /*
+     * Close mobile sidebar.
+     */
+    document
+        .getElementById("sidebar")
+        .classList.remove("open");
 }
 
 
-$("joinBtn").onclick = () => {
+/* =========================
+   CREATE ROOM
+========================= */
 
-  const name =
-    $("username").value.trim();
+function createRoom() {
 
-  if (!name) {
-    alert("Enter a display name.");
-    return;
-  }
+    document
+        .getElementById("roomModal")
+        .classList.remove("hidden");
 
-  me.name =
-    name.slice(0,24);
-
-  me.avatar =
-    $("avatarUrl").value.trim();
-
-  if (!me.avatar) {
-    me.avatar =
-      avatarFallback(me.name);
-  }
-
-  $("myName").textContent =
-    me.name;
-
-  $("myAvatar").src =
-    me.avatar;
-
-  loginModal.style.display =
-    "none";
+    document
+        .getElementById("roomNameInput")
+        .focus();
+}
 
 
-  const defaultRoom = {
-    name:"General",
-    code:"general",
-    unread:0
-  };
+function closeRoomModal() {
 
-  rooms = [defaultRoom];
-
-  connectRoom(defaultRoom);
-};
+    document
+        .getElementById("roomModal")
+        .classList.add("hidden");
+}
 
 
-$("newRoom").onclick = () => {
+function confirmCreateRoom() {
 
-  roomModal.style.display =
-    "flex";
-};
+    const name =
+        document
+            .getElementById("roomNameInput")
+            .value
+            .trim();
 
+    let code =
+        document
+            .getElementById("roomCodeInput")
+            .value
+            .trim()
+            .toLowerCase();
 
-$("cancelRoom").onclick = () => {
+    if (!name) {
 
-  roomModal.style.display =
-    "none";
-};
+        alert("Enter a room name.");
 
+        return;
+    }
 
-$("createRoom").onclick = () => {
+    if (!code) {
 
-  const name =
-    $("roomName").value.trim();
+        code =
+            name
+                .toLowerCase()
+                .replace(/[^a-z0-9_-]/g, "-");
+    }
 
-  const code =
-    $("roomCode").value.trim();
+    if (
+        rooms.some(
+            room => room.code === code
+        )
+    ) {
 
-  if (!name || !code) {
-    alert("Enter both a room name and room code.");
-    return;
-  }
+        alert("That room already exists.");
 
-  const room = {
-    name,
-    code,
-    unread:0
-  };
+        return;
+    }
 
-  if (
-    !rooms.some(r => r.code === code)
-  ) {
-    rooms.push(room);
-  }
+    rooms.push({
+        name,
+        code
+    });
 
-  roomModal.style.display =
-    "none";
+    closeRoomModal();
 
-  connectRoom(room);
-};
+    document
+        .getElementById("roomNameInput")
+        .value = "";
 
+    document
+        .getElementById("roomCodeInput")
+        .value = "";
 
-$("joinRoom").onclick = () => {
+    renderRooms();
 
-  const code =
-    $("joinCode").value.trim();
-
-  if (!code) return;
-
-  const room = {
-    name:code,
-    code,
-    unread:0
-  };
-
-  if (
-    !rooms.some(r => r.code === code)
-  ) {
-    rooms.push(room);
-  }
-
-  roomModal.style.display =
-    "none";
-
-  connectRoom(room);
-};
+    joinRoom(code);
+}
 
 
-$("composer").onsubmit = event => {
+/* =========================
+   THEME
+========================= */
 
-  event.preventDefault();
+function toggleTheme() {
 
-  const text =
-    $("messageInput").value.trim();
-
-  if (!text) return;
-
-  if (
-    socket &&
-    socket.readyState === WebSocket.OPEN
-  ) {
-
-    socket.send(JSON.stringify({
-      type:"message",
-      message:text
-    }));
-
-    $("messageInput").value = "";
-  }
-};
-
-
-const emojis = [
-  "😀","😂","🤣","😭","😍","😎",
-  "😡","😢","😮","😴","🤔","👍",
-  "👎","❤️","🔥","💀","💯","🎉",
-  "👀","🙏"
-];
-
-$("emoji").onclick = () => {
-
-  const emoji =
-    prompt(
-      "Choose an emoji:\n\n" +
-      emojis.join(" ")
+    document.body.classList.toggle(
+        "light"
     );
 
-  if (emoji) {
-    $("messageInput").value += emoji;
-    $("messageInput").focus();
-  }
-};
-
-
-$("theme").onclick = () => {
-
-  document.body.classList.toggle("light");
-
-  localStorage.setItem(
-    "theme",
-    document.body.classList.contains("light")
-      ? "light"
-      : "dark"
-  );
-};
-
-
-if (
-  localStorage.getItem("theme") === "light"
-) {
-  document.body.classList.add("light");
+    localStorage.setItem(
+        "chat_theme",
+        document.body.classList.contains("light")
+            ? "light"
+            : "dark"
+    );
 }
 
 
-$("mobileMenu").onclick = () => {
+function loadTheme() {
 
-  $("sidebar").classList.toggle("open");
-};
+    const theme =
+        localStorage.getItem("chat_theme");
+
+    if (theme === "light") {
+
+        document.body.classList.add(
+            "light"
+        );
+
+    }
+
+}
+
+
+/* =========================
+   MOBILE SIDEBAR
+========================= */
+
+function toggleSidebar() {
+
+    document
+        .getElementById("sidebar")
+        .classList.toggle("open");
+}
+
+
+/* =========================
+   UNREAD
+========================= */
+
+document.addEventListener(
+    "visibilitychange",
+    () => {
+
+        if (!document.hidden) {
+
+            unread[currentRoom] = 0;
+
+            renderRooms();
+
+            updatePageTitle();
+
+        }
+
+    }
+);
+
+
+function updatePageTitle() {
+
+    const total =
+        Object.values(unread)
+            .reduce(
+                (sum, value) => sum + value,
+                0
+            );
+
+    document.title =
+        total > 0
+            ? `(${total}) Chat Room`
+            : "Chat Room";
+}
+
+
+/* =========================
+   SECURITY / HTML ESCAPING
+========================= */
+
+function escapeHTML(value) {
+
+    return String(value)
+        .replaceAll("&", "&amp;")
+        .replaceAll("<", "&lt;")
+        .replaceAll(">", "&gt;")
+        .replaceAll('"', "&quot;")
+        .replaceAll("'", "&#039;");
+}
+
+
+function escapeAttribute(value) {
+
+    return escapeHTML(value);
+}
+
+
+/* =========================
+   START
+========================= */
+
+loadTheme();
+
+renderRooms();
+
+loadSavedUser();
 
 </script>
 
