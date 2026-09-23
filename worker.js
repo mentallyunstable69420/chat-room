@@ -545,6 +545,16 @@ export class ChatRoom extends DurableObject {
   // ==========================================================
 
   async connect(url) {
+    try {
+      await this.setup();
+    } catch (error) {
+      console.error("WebSocket database setup failed:", error);
+      return new Response(
+        "Chat database initialization failed.",
+        { status: 500 }
+      );
+    }
+
     const room =
       cleanRoomCode(
         url.searchParams.get(
@@ -623,8 +633,8 @@ export class ChatRoom extends DurableObject {
       );
     } catch {}
 
-    // Update online users.
-    await this.sendMembers();
+    // Do not delay the 101 handshake for member broadcasting.
+    this.sendMembers();
 
     return new Response(
       null,
