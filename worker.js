@@ -566,10 +566,13 @@ export class ChatRoom extends DurableObject {
         )
       );
 
+    // FIX: The frontend sends devToken, so
+    // recognize that token here as well.
     const isDev =
-      url.searchParams.get(
-        "dev"
-      ) === "1";
+      url.searchParams.get("dev") === "1" ||
+      isDevToken(
+        url.searchParams.get("devToken") || ""
+      );
 
     const pair =
       new WebSocketPair();
@@ -591,14 +594,17 @@ export class ChatRoom extends DurableObject {
       lastMessageAt: 0
     };
 
+    // FIX: Accept the WebSocket first.
+    // Cloudflare's Hibernation API uses the accepted
+    // server WebSocket for the connection lifecycle.
+    this.ctx.acceptWebSocket(
+      server
+    );
+
     // Persist session through
     // Durable Object hibernation.
     server.serializeAttachment(
       session
-    );
-
-    this.ctx.acceptWebSocket(
-      server
     );
 
     this.sessions.set(
@@ -1986,33 +1992,4 @@ function isDevToken(token) {
   try {
     const data =
       JSON.parse(
-        atob(token)
-      );
-
-    return (
-      data?.dev === true &&
-      data?.secret ===
-        DEV_PASSKEY
-    );
-  } catch {
-    return false;
-  }
-}
-
-function isDevRequest(
-  request
-) {
-  const header =
-    request.headers.get(
-      "Authorization"
-    ) || "";
-
-  return (
-    header.startsWith(
-      "Bearer "
-    ) &&
-    isDevToken(
-      header.slice(7)
-    )
-  );
-}
+       
