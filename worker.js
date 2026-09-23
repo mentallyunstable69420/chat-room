@@ -15,10 +15,15 @@ export default {
 
     // HISTORY
     if (url.pathname === "/api/history") {
-      const roomCode = cleanRoomCode(url.searchParams.get("room")) || "general";
+      const roomCode =
+        cleanRoomCode(url.searchParams.get("room")) || "general";
+
       const id = env.CHAT_ROOM.idFromName(roomCode);
       const room = env.CHAT_ROOM.get(id);
-      return room.fetch(request);
+
+      return room.fetch(
+        new Request("https://chatroom.internal/api/history")
+      );
     }
 
     // WEBSOCKET
@@ -39,6 +44,7 @@ export default {
       const room = env.CHAT_ROOM.get(id);
 
       const wsUrl = new URL("https://chatroom.internal/ws");
+
       wsUrl.searchParams.set("room", roomCode);
       wsUrl.searchParams.set("name", name);
       wsUrl.searchParams.set("avatar", avatar);
@@ -118,50 +124,135 @@ export class ChatRoom extends DurableObject {
 
     this.ctx = ctx;
     this.env = env;
-
     this.sessions = new Map();
+    this.ready = false;
 
     for (const ws of ctx.getWebSockets()) {
-      const data = ws.deserializeAttachment();
+      try {
+        const data = ws.deserializeAttachment();
 
-      if (data) {
-        this.sessions.set(ws, data);
-      }
+        if (data) {
+          this.sessions.set(ws, data);
+        }
+      } catch {}
     }
-
-    this.ready = false;
   }
 
   async setup() {
     if (this.ready) return;
 
-    this.ready = true;
+    /*
+     * IMPORTANT:
+     * Older versions of this chat used a different database
+     * structure. We repair the existing table instead of deleting it.
+     */
 
     this.ctx.storage.sql.exec(`
       CREATE TABLE IF NOT EXISTS messages (
         id TEXT PRIMARY KEY,
-        username TEXT NOT NULL,
+        username TEXT NOT NULL DEFAULT 'Guest',
         avatar TEXT DEFAULT '',
-        text TEXT NOT NULL,
-        created_at INTEGER NOT NULL,
+        text TEXT NOT NULL DEFAULT '',
+        created_at INTEGER NOT NULL DEFAULT 0,
         edited INTEGER DEFAULT 0,
         pinned INTEGER DEFAULT 0
       )
     `);
 
-    // Make sure the general room exists.
-    let rooms = await this.ctx.storage.get("rooms");
+    // Check what columns already exist.
+    const columns = this.ctx.storage.sql
+      .exec(`PRAGMA table_info(messages)`)
+      .toArray()
+      .map(row => String(row.name));
 
-    if (!Array.isArray(rooms)) {
-      rooms = [
-        {
-          name: "General",
-          code: "general"
-        }
-      ];
-
-      await this.ctx.storage.put("rooms", rooms);
+    // Add missing columns from older versions.
+    if (!columns.includes("username")) {
+      this.ctx.storage.sql.exec(`
+        ALTER TABLE messages
+        ADD COLUMN username TEXT NOT NULL DEFAULT 'Guest'
+      `);
     }
+
+    if (!columns.includes("avatar")) {
+      this.ctx.storage.sql.exec(`
+        ALTER TABLE messages
+        ADD COLUMN avatar TEXT DEFAULT ''
+      `);
+    }
+
+    if (!columns.includes("text")) {
+      this.ctx.storage.sql.exec(`
+        ALTER TABLE messages
+        ADD COLUMN text TEXT NOT NULL DEFAULT ''
+      `);
+
+      // Older versions may have called this column "message".
+      if (columns.includes("message")) {
+        this.ctx.storage.sql.exec(`
+          UPDATE messages
+          SET text = message
+          WHERE text = '' AND message IS NOT NULL
+        `);
+      }
+
+      // Some older versions may have called it "content".
+      if (columns.includes("content")) {
+        this.ctx.storage.sql.exec(`
+          UPDATE messages
+          SET text = content
+          WHERE text = '' AND content IS NOT NULL
+        `);
+      }
+    }
+
+    if (!columns.includes("created_at")) {
+      this.ctx.storage.sql.exec(`
+        ALTER TABLE messages
+        ADD COLUMN created_at INTEGER NOT NULL DEFAULT 0
+      `);
+
+      if (columns.includes("timestamp")) {
+        this.ctx.storage.sql.exec(`
+          UPDATE messages
+          SET created_at = timestamp
+          WHERE created_at = 0 AND timestamp IS NOT NULL
+        `);
+      }
+    }
+
+    if (!columns.includes("edited")) {
+      this.ctx.storage.sql.exec(`
+        ALTER TABLE messages
+        ADD COLUMN edited INTEGER DEFAULT 0
+      `);
+    }
+
+    if (!columns.includes("pinned")) {
+      this.ctx.storage.sql.exec(`
+        ALTER TABLE messages
+        ADD COLUMN pinned INTEGER DEFAULT 0
+      `);
+    }
+
+    // Make sure the lobby has a room list.
+    const isLobby = this.ctx.id.name === "__ROOM_LOBBY__";
+
+    if (isLobby) {
+      let rooms = await this.ctx.storage.get("rooms");
+
+      if (!Array.isArray(rooms)) {
+        rooms = [
+          {
+            name: "General",
+            code: "general"
+          }
+        ];
+
+        await this.ctx.storage.put("rooms", rooms);
+      }
+    }
+
+    this.ready = true;
   }
 
   async fetch(request) {
@@ -193,7 +284,9 @@ export class ChatRoom extends DurableObject {
       return this.devAction(request);
     }
 
-    return new Response("Not found", { status: 404 });
+    return new Response("Not found", {
+      status: 404
+    });
   }
 
   async connect(url) {
@@ -206,11 +299,10 @@ export class ChatRoom extends DurableObject {
     const avatar =
       cleanAvatar(url.searchParams.get("avatar"));
 
-    if (!(await this.roomExists(room))) {
-      return new Response("Room does not exist.", {
-        status: 404
-      });
-    }
+    /*
+     * We intentionally do not reject unknown room codes here.
+     * Each room has its own Durable Object.
+     */
 
     const pair = new WebSocketPair();
 
@@ -230,15 +322,17 @@ export class ChatRoom extends DurableObject {
 
     this.sessions.set(server, session);
 
-    // Send existing messages immediately.
+    // Send chat history.
     const messages = this.getMessages();
 
-    server.send(
-      JSON.stringify({
-        type: "history",
-        messages
-      })
-    );
+    try {
+      server.send(
+        JSON.stringify({
+          type: "history",
+          messages
+        })
+      );
+    } catch {}
 
     await this.sendMembers();
 
@@ -261,12 +355,15 @@ export class ChatRoom extends DurableObject {
       data =
         typeof message === "string"
           ? JSON.parse(message)
-          : JSON.parse(new TextDecoder().decode(message));
+          : JSON.parse(
+              new TextDecoder().decode(message)
+            );
     } catch {
       this.send(ws, {
         type: "error",
         message: "Invalid message."
       });
+
       return;
     }
 
@@ -275,15 +372,25 @@ export class ChatRoom extends DurableObject {
     }
 
     if (data.action === "edit") {
-      await this.editMessage(session, data.id, data.text);
+      await this.editMessage(
+        session,
+        data.id,
+        data.text
+      );
     }
 
     if (data.action === "delete") {
-      await this.deleteMessage(session, data.id);
+      await this.deleteMessage(
+        session,
+        data.id
+      );
     }
 
     if (data.action === "pin") {
-      await this.pinMessage(session, data.id);
+      await this.pinMessage(
+        session,
+        data.id
+      );
     }
   }
 
@@ -298,30 +405,28 @@ export class ChatRoom extends DurableObject {
   }
 
   getMessages() {
-    const rows = this.ctx.storage.sql.exec(`
-      SELECT
-        id,
-        username,
-        avatar,
-        text,
-        created_at,
-        edited,
-        pinned
-      FROM messages
-      ORDER BY created_at ASC
-      LIMIT 500
-    `).toArray();
+    const rows = this.ctx.storage.sql
+      .exec(`
+        SELECT
+          id,
+          username,
+          avatar,
+          text,
+          created_at,
+          edited,
+          pinned
+        FROM messages
+        ORDER BY created_at ASC
+        LIMIT 500
+      `)
+      .toArray();
 
     return rows.map(row => ({
       id: String(row.id),
-      username: String(row.username || ""),
+      username: String(row.username || "Guest"),
       avatar: String(row.avatar || ""),
-
-      // IMPORTANT:
-      // Always send the actual message text.
       text: String(row.text || ""),
-
-      created_at: Number(row.created_at),
+      created_at: Number(row.created_at || Date.now()),
       edited: Boolean(row.edited),
       pinned: Boolean(row.pinned)
     }));
@@ -332,15 +437,13 @@ export class ChatRoom extends DurableObject {
 
     if (!text) return;
 
-    if (text.length > 2000) {
-      return;
-    }
+    if (text.length > 2000) return;
 
     const message = {
       id: crypto.randomUUID(),
       username: session.username,
       avatar: session.avatar || "",
-      text: text,
+      text,
       created_at: Date.now(),
       edited: false,
       pinned: false
@@ -372,10 +475,12 @@ export class ChatRoom extends DurableObject {
 
     if (!id || !text) return;
 
-    const rows = this.ctx.storage.sql.exec(
-      `SELECT * FROM messages WHERE id = ?`,
-      id
-    ).toArray();
+    const rows = this.ctx.storage.sql
+      .exec(
+        `SELECT * FROM messages WHERE id = ?`,
+        id
+      )
+      .toArray();
 
     const old = rows[0];
 
@@ -397,7 +502,7 @@ export class ChatRoom extends DurableObject {
       id: String(old.id),
       username: String(old.username),
       avatar: String(old.avatar || ""),
-      text: text,
+      text,
       created_at: Number(old.created_at),
       edited: true,
       pinned: Boolean(old.pinned)
@@ -412,10 +517,12 @@ export class ChatRoom extends DurableObject {
   async deleteMessage(session, id) {
     if (!id) return;
 
-    const rows = this.ctx.storage.sql.exec(
-      `SELECT * FROM messages WHERE id = ?`,
-      id
-    ).toArray();
+    const rows = this.ctx.storage.sql
+      .exec(
+        `SELECT * FROM messages WHERE id = ?`,
+        id
+      )
+      .toArray();
 
     const old = rows[0];
 
@@ -437,10 +544,12 @@ export class ChatRoom extends DurableObject {
   async pinMessage(session, id) {
     if (!id) return;
 
-    const rows = this.ctx.storage.sql.exec(
-      `SELECT * FROM messages WHERE id = ?`,
-      id
-    ).toArray();
+    const rows = this.ctx.storage.sql
+      .exec(
+        `SELECT * FROM messages WHERE id = ?`,
+        id
+      )
+      .toArray();
 
     const old = rows[0];
 
@@ -496,10 +605,15 @@ export class ChatRoom extends DurableObject {
         code: "general"
       });
 
-      await this.ctx.storage.put("rooms", rooms);
+      await this.ctx.storage.put(
+        "rooms",
+        rooms
+      );
     }
 
-    return json({ rooms });
+    return json({
+      rooms
+    });
   }
 
   async createRoom(request) {
@@ -535,7 +649,11 @@ export class ChatRoom extends DurableObject {
       rooms = [];
     }
 
-    if (rooms.some(room => room.code === code)) {
+    if (
+      rooms.some(
+        room => room.code === code
+      )
+    ) {
       return json({
         error: "That room already exists."
       }, 409);
@@ -548,7 +666,10 @@ export class ChatRoom extends DurableObject {
 
     rooms.push(room);
 
-    await this.ctx.storage.put("rooms", rooms);
+    await this.ctx.storage.put(
+      "rooms",
+      rooms
+    );
 
     return json({
       success: true,
@@ -556,22 +677,13 @@ export class ChatRoom extends DurableObject {
     });
   }
 
-  async roomExists(code) {
-    if (code === "general") return true;
-
-    const rooms =
-      await this.ctx.storage.get("rooms");
-
-    if (!Array.isArray(rooms)) return false;
-
-    return rooms.some(room => room.code === code);
-  }
-
   async sendMembers() {
     const members = [];
 
     for (const ws of this.ctx.getWebSockets()) {
-      if (ws.readyState !== WebSocket.OPEN) continue;
+      if (ws.readyState !== WebSocket.OPEN) {
+        continue;
+      }
 
       const session =
         ws.deserializeAttachment() ||
@@ -628,7 +740,9 @@ export class ChatRoom extends DurableObject {
       });
     }
 
-    return json({ users });
+    return json({
+      users
+    });
   }
 
   async devAction(request) {
@@ -642,10 +756,14 @@ export class ChatRoom extends DurableObject {
       }, 400);
     }
 
-    const target = String(body.target || "").trim();
-    const action = String(body.action || "");
+    const target =
+      String(body.target || "").trim();
 
-    let seconds = Number(body.seconds) || 60;
+    const action =
+      String(body.action || "");
+
+    let seconds =
+      Number(body.seconds) || 60;
 
     seconds = Math.max(
       1,
@@ -659,12 +777,15 @@ export class ChatRoom extends DurableObject {
 
       if (!session) continue;
 
-      if (session.username !== target) continue;
+      if (session.username !== target) {
+        continue;
+      }
 
       if (action === "kick") {
         this.send(ws, {
           type: "error",
-          message: "You were kicked from the chatroom."
+          message:
+            "You were kicked from the chatroom."
         });
 
         try {
@@ -714,7 +835,8 @@ function cleanRoomCode(value) {
 }
 
 function cleanAvatar(value) {
-  const valueString = String(value || "").trim();
+  const valueString =
+    String(value || "").trim();
 
   if (
     valueString.startsWith("https://") ||
@@ -748,11 +870,11 @@ function isDevRequest(request) {
   }
 
   try {
-    const token = header.slice(7);
+    const token =
+      header.slice(7);
 
-    const data = JSON.parse(
-      atob(token)
-    );
+    const data =
+      JSON.parse(atob(token));
 
     return (
       data.dev === true &&
