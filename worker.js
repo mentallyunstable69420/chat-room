@@ -178,7 +178,7 @@ export default {
         }
       }
 
-      // VERY IMPORTANT:
+      // IMPORTANT:
       // Pass the ORIGINAL WebSocket request.
       const room = env.CHAT_ROOM.get(
         env.CHAT_ROOM.idFromName(roomCode)
@@ -433,23 +433,7 @@ export class ChatRoom extends DurableObject {
   // WEBSOCKET CONNECTION
   // ==========================================================
 
-  async connect(url) {
-    // Database setup happens here, AFTER the request has
-    // reached the Durable Object's WebSocket route.
-    try {
-      await this.setup();
-    } catch (error) {
-      console.error(
-        "WebSocket database setup failed:",
-        error
-      );
-
-      return new Response(
-        "Chat database initialization failed.",
-        { status: 500 }
-      );
-    }
-
+  connect(url) {
     const room =
       cleanRoomCode(
         url.searchParams.get("room")
@@ -472,6 +456,16 @@ export class ChatRoom extends DurableObject {
       url.searchParams.get("dev") === "1" ||
       isDevToken(devToken);
 
+    /*
+     * IMPORTANT FIX:
+     *
+     * Accept the WebSocket BEFORE doing SQLite setup.
+     *
+     * Previously setup() was awaited here. If the database
+     * migration/setup failed, the WebSocket never reached
+     * the 101 handshake and the client stayed "Disconnected".
+     */
+
     const pair =
       new WebSocketPair();
 
@@ -489,10 +483,13 @@ export class ChatRoom extends DurableObject {
     };
 
     /*
-     * Accept the WebSocket BEFORE serializing the attachment.
+     * Accept WebSocket first.
      */
     this.ctx.acceptWebSocket(server);
 
+    /*
+     * Then store the session.
+     */
     server.serializeAttachment(session);
 
     this.sessions.set(
@@ -500,19 +497,49 @@ export class ChatRoom extends DurableObject {
       session
     );
 
-    // Send history immediately.
-    try {
-      server.send(
-        JSON.stringify({
-          type: "history",
-          messages: this.getMessages()
-        })
-      );
-    } catch {}
+    /*
+     * Database setup happens AFTER the WebSocket handshake
+     * has been accepted.
+     */
+    this.setup()
+      .then(() => {
+        try {
+          server.send(
+            JSON.stringify({
+              type: "history",
+              messages: this.getMessages()
+            })
+          );
+        } catch {}
 
-    // Don't delay the handshake for this.
-    this.sendMembers();
+        this.sendMembers();
+      })
+      .catch(error => {
+        console.error(
+          "WebSocket database setup failed:",
+          error
+        );
 
+        this.send(
+          server,
+          {
+            type: "error",
+            message:
+              "Chat database initialization failed."
+          }
+        );
+
+        try {
+          server.close(
+            1011,
+            "Database initialization failed"
+          );
+        } catch {}
+      });
+
+    /*
+     * Return the WebSocket handshake immediately.
+     */
     return new Response(
       null,
       {
