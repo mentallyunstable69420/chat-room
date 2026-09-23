@@ -6,66 +6,118 @@ export default {
   async fetch(request, env) {
     const url = new URL(request.url);
 
+    // =========================================================
     // ROOM LIST
+    // =========================================================
+
     if (url.pathname === "/api/rooms") {
       const id = env.CHAT_ROOM.idFromName("__ROOM_LOBBY__");
       const room = env.CHAT_ROOM.get(id);
-      return room.fetch(request);
+
+      return room.fetch(
+        new Request("https://chatroom.internal/api/rooms", {
+          method: request.method,
+          body:
+            request.method === "POST"
+              ? await request.text()
+              : undefined,
+          headers: request.headers
+        })
+      );
     }
 
-    // HISTORY
+    // =========================================================
+    // CHAT HISTORY
+    // =========================================================
+
     if (url.pathname === "/api/history") {
       const roomCode =
-        cleanRoomCode(url.searchParams.get("room")) || "general";
+        cleanRoomCode(url.searchParams.get("room")) ||
+        "general";
 
       const id = env.CHAT_ROOM.idFromName(roomCode);
       const room = env.CHAT_ROOM.get(id);
 
       return room.fetch(
-        new Request("https://chatroom.internal/api/history")
+        new Request(
+          "https://chatroom.internal/api/history"
+        )
       );
     }
 
+    // =========================================================
     // WEBSOCKET
+    // =========================================================
+
     if (
       url.pathname === "/api/ws" &&
-      request.headers.get("Upgrade")?.toLowerCase() === "websocket"
+      request.headers.get("Upgrade")?.toLowerCase() ===
+        "websocket"
     ) {
       const roomCode =
-        cleanRoomCode(url.searchParams.get("room")) || "general";
+        cleanRoomCode(url.searchParams.get("room")) ||
+        "general";
 
       const name =
-        cleanName(url.searchParams.get("name")) || "Guest";
+        cleanName(url.searchParams.get("name")) ||
+        "Guest";
 
       const avatar =
         cleanAvatar(url.searchParams.get("avatar"));
 
-      const id = env.CHAT_ROOM.idFromName(roomCode);
-      const room = env.CHAT_ROOM.get(id);
+      const id =
+        env.CHAT_ROOM.idFromName(roomCode);
 
-      const wsUrl = new URL("https://chatroom.internal/ws");
+      const room =
+        env.CHAT_ROOM.get(id);
 
-      wsUrl.searchParams.set("room", roomCode);
-      wsUrl.searchParams.set("name", name);
-      wsUrl.searchParams.set("avatar", avatar);
+      const wsUrl =
+        new URL("https://chatroom.internal/ws");
+
+      wsUrl.searchParams.set(
+        "room",
+        roomCode
+      );
+
+      wsUrl.searchParams.set(
+        "name",
+        name
+      );
+
+      wsUrl.searchParams.set(
+        "avatar",
+        avatar
+      );
 
       return room.fetch(
         new Request(wsUrl.toString(), request)
       );
     }
 
+    // =========================================================
     // DEV LOGIN
-    if (url.pathname === "/api/dev/login" && request.method === "POST") {
+    // =========================================================
+
+    if (
+      url.pathname === "/api/dev/login" &&
+      request.method === "POST"
+    ) {
       let body;
 
       try {
         body = await request.json();
       } catch {
-        return json({ error: "Invalid request." }, 400);
+        return json(
+          { error: "Invalid request." },
+          400
+        );
       }
 
       if (body.passkey !== DEV_PASSKEY) {
-        return json({ error: "Invalid passkey." }, 401);
+        return json(
+          { error: "Invalid passkey." },
+          401
+        );
       }
 
       const token = btoa(
@@ -79,43 +131,83 @@ export default {
       return json({ token });
     }
 
+    // =========================================================
     // DEV USERS
+    // =========================================================
+
     if (url.pathname === "/api/dev/users") {
       if (!isDevRequest(request)) {
-        return json({ error: "Unauthorized." }, 401);
+        return json(
+          { error: "Unauthorized." },
+          401
+        );
       }
 
-      const id = env.CHAT_ROOM.idFromName("__ROOM_LOBBY__");
-      const room = env.CHAT_ROOM.get(id);
+      const id =
+        env.CHAT_ROOM.idFromName(
+          "__ROOM_LOBBY__"
+        );
+
+      const room =
+        env.CHAT_ROOM.get(id);
 
       return room.fetch(
-        new Request("https://chatroom.internal/dev/users")
+        new Request(
+          "https://chatroom.internal/dev/users"
+        )
       );
     }
 
+    // =========================================================
     // DEV ACTION
-    if (url.pathname === "/api/dev/action" && request.method === "POST") {
+    // =========================================================
+
+    if (
+      url.pathname === "/api/dev/action" &&
+      request.method === "POST"
+    ) {
       if (!isDevRequest(request)) {
-        return json({ error: "Unauthorized." }, 401);
+        return json(
+          { error: "Unauthorized." },
+          401
+        );
       }
 
-      const id = env.CHAT_ROOM.idFromName("__ROOM_LOBBY__");
-      const room = env.CHAT_ROOM.get(id);
+      const id =
+        env.CHAT_ROOM.idFromName(
+          "__ROOM_LOBBY__"
+        );
+
+      const room =
+        env.CHAT_ROOM.get(id);
 
       return room.fetch(
-        new Request("https://chatroom.internal/dev/action", {
-          method: "POST",
-          body: await request.text(),
-          headers: {
-            "Content-Type": "application/json"
+        new Request(
+          "https://chatroom.internal/dev/action",
+          {
+            method: "POST",
+            body: await request.text(),
+            headers: {
+              "Content-Type":
+                "application/json"
+            }
           }
-        })
+        )
       );
     }
+
+    // =========================================================
+    // WEBSITE FILES
+    // =========================================================
 
     return env.ASSETS.fetch(request);
   }
 };
+
+
+// =============================================================
+// CHAT ROOM DURABLE OBJECT
+// =============================================================
 
 export class ChatRoom extends DurableObject {
 
@@ -124,29 +216,39 @@ export class ChatRoom extends DurableObject {
 
     this.ctx = ctx;
     this.env = env;
+
+    // Rebuild the in-memory session map after
+    // Durable Object hibernation.
     this.sessions = new Map();
-    this.ready = false;
 
     for (const ws of ctx.getWebSockets()) {
       try {
-        const data = ws.deserializeAttachment();
+        const session =
+          ws.deserializeAttachment();
 
-        if (data) {
-          this.sessions.set(ws, data);
+        if (session) {
+          this.sessions.set(
+            ws,
+            session
+          );
         }
       } catch {}
     }
+
+    this.ready = false;
   }
 
+
+  // ===========================================================
+  // DATABASE SETUP / REPAIR
+  // ===========================================================
+
   async setup() {
-    if (this.ready) return;
+    if (this.ready) {
+      return;
+    }
 
-    /*
-     * IMPORTANT:
-     * Older versions of this chat used a different database
-     * structure. We repair the existing table instead of deleting it.
-     */
-
+    // Create the table if this is a brand-new room.
     this.ctx.storage.sql.exec(`
       CREATE TABLE IF NOT EXISTS messages (
         id TEXT PRIMARY KEY,
@@ -159,48 +261,57 @@ export class ChatRoom extends DurableObject {
       )
     `);
 
-    // Check what columns already exist.
-    const columns = this.ctx.storage.sql
-      .exec(`PRAGMA table_info(messages)`)
-      .toArray()
-      .map(row => String(row.name));
+    // Find existing columns.
+    const columns =
+      this.ctx.storage.sql
+        .exec(`PRAGMA table_info(messages)`)
+        .toArray()
+        .map(row => String(row.name));
 
-    // Add missing columns from older versions.
+    // ---------------------------------------------------------
+    // Repair older database versions.
+    // ---------------------------------------------------------
+
     if (!columns.includes("username")) {
       this.ctx.storage.sql.exec(`
         ALTER TABLE messages
-        ADD COLUMN username TEXT NOT NULL DEFAULT 'Guest'
+        ADD COLUMN username TEXT
+        NOT NULL DEFAULT 'Guest'
       `);
     }
 
     if (!columns.includes("avatar")) {
       this.ctx.storage.sql.exec(`
         ALTER TABLE messages
-        ADD COLUMN avatar TEXT DEFAULT ''
+        ADD COLUMN avatar TEXT
+        DEFAULT ''
       `);
     }
 
     if (!columns.includes("text")) {
       this.ctx.storage.sql.exec(`
         ALTER TABLE messages
-        ADD COLUMN text TEXT NOT NULL DEFAULT ''
+        ADD COLUMN text TEXT
+        NOT NULL DEFAULT ''
       `);
 
-      // Older versions may have called this column "message".
+      // Older version may have used "message".
       if (columns.includes("message")) {
         this.ctx.storage.sql.exec(`
           UPDATE messages
           SET text = message
-          WHERE text = '' AND message IS NOT NULL
+          WHERE text = ''
+          AND message IS NOT NULL
         `);
       }
 
-      // Some older versions may have called it "content".
+      // Older version may have used "content".
       if (columns.includes("content")) {
         this.ctx.storage.sql.exec(`
           UPDATE messages
           SET text = content
-          WHERE text = '' AND content IS NOT NULL
+          WHERE text = ''
+          AND content IS NOT NULL
         `);
       }
     }
@@ -208,14 +319,17 @@ export class ChatRoom extends DurableObject {
     if (!columns.includes("created_at")) {
       this.ctx.storage.sql.exec(`
         ALTER TABLE messages
-        ADD COLUMN created_at INTEGER NOT NULL DEFAULT 0
+        ADD COLUMN created_at INTEGER
+        NOT NULL DEFAULT 0
       `);
 
+      // Older version may have used "timestamp".
       if (columns.includes("timestamp")) {
         this.ctx.storage.sql.exec(`
           UPDATE messages
           SET created_at = timestamp
-          WHERE created_at = 0 AND timestamp IS NOT NULL
+          WHERE created_at = 0
+          AND timestamp IS NOT NULL
         `);
       }
     }
@@ -223,59 +337,59 @@ export class ChatRoom extends DurableObject {
     if (!columns.includes("edited")) {
       this.ctx.storage.sql.exec(`
         ALTER TABLE messages
-        ADD COLUMN edited INTEGER DEFAULT 0
+        ADD COLUMN edited INTEGER
+        DEFAULT 0
       `);
     }
 
     if (!columns.includes("pinned")) {
       this.ctx.storage.sql.exec(`
         ALTER TABLE messages
-        ADD COLUMN pinned INTEGER DEFAULT 0
+        ADD COLUMN pinned INTEGER
+        DEFAULT 0
       `);
-    }
-
-    // Make sure the lobby has a room list.
-    const isLobby = this.ctx.id.name === "__ROOM_LOBBY__";
-
-    if (isLobby) {
-      let rooms = await this.ctx.storage.get("rooms");
-
-      if (!Array.isArray(rooms)) {
-        rooms = [
-          {
-            name: "General",
-            code: "general"
-          }
-        ];
-
-        await this.ctx.storage.put("rooms", rooms);
-      }
     }
 
     this.ready = true;
   }
 
+
+  // ===========================================================
+  // DURABLE OBJECT REQUEST HANDLER
+  // ===========================================================
+
   async fetch(request) {
     await this.setup();
 
-    const url = new URL(request.url);
+    const url =
+      new URL(request.url);
 
+    // WebSocket connection.
     if (url.pathname === "/ws") {
       return this.connect(url);
     }
 
+    // History.
     if (url.pathname === "/api/history") {
       return this.getHistory();
     }
 
-    if (url.pathname === "/api/rooms" && request.method === "GET") {
+    // Rooms.
+    if (
+      url.pathname === "/api/rooms" &&
+      request.method === "GET"
+    ) {
       return this.getRooms();
     }
 
-    if (url.pathname === "/api/rooms" && request.method === "POST") {
+    if (
+      url.pathname === "/api/rooms" &&
+      request.method === "POST"
+    ) {
       return this.createRoom(request);
     }
 
+    // Developer tools.
     if (url.pathname === "/dev/users") {
       return this.getDevUsers();
     }
@@ -284,27 +398,35 @@ export class ChatRoom extends DurableObject {
       return this.devAction(request);
     }
 
-    return new Response("Not found", {
-      status: 404
-    });
+    return new Response(
+      "Not found",
+      { status: 404 }
+    );
   }
+
+
+  // ===========================================================
+  // CONNECT WEBSOCKET
+  // ===========================================================
 
   async connect(url) {
     const room =
-      cleanRoomCode(url.searchParams.get("room")) || "general";
+      cleanRoomCode(
+        url.searchParams.get("room")
+      ) || "general";
 
     const username =
-      cleanName(url.searchParams.get("name")) || "Guest";
+      cleanName(
+        url.searchParams.get("name")
+      ) || "Guest";
 
     const avatar =
-      cleanAvatar(url.searchParams.get("avatar"));
+      cleanAvatar(
+        url.searchParams.get("avatar")
+      );
 
-    /*
-     * We intentionally do not reject unknown room codes here.
-     * Each room has its own Durable Object.
-     */
-
-    const pair = new WebSocketPair();
+    const pair =
+      new WebSocketPair();
 
     const client = pair[0];
     const server = pair[1];
@@ -313,146 +435,291 @@ export class ChatRoom extends DurableObject {
       username,
       avatar,
       room,
-      joinedAt: Date.now()
+      joinedAt: Date.now(),
+      sessionId: crypto.randomUUID()
     };
 
-    server.serializeAttachment(session);
+    // IMPORTANT:
+    // Save the session on the WebSocket so it survives
+    // Durable Object hibernation.
+    server.serializeAttachment(
+      session
+    );
 
-    this.ctx.acceptWebSocket(server);
+    // Accept as a hibernatable WebSocket.
+    this.ctx.acceptWebSocket(
+      server
+    );
 
-    this.sessions.set(server, session);
+    this.sessions.set(
+      server,
+      session
+    );
 
-    // Send chat history.
-    const messages = this.getMessages();
-
+    // Send history immediately.
     try {
       server.send(
         JSON.stringify({
           type: "history",
-          messages
+          messages: this.getMessages()
         })
       );
     } catch {}
 
+    // Tell everyone about the new member.
     await this.sendMembers();
 
-    return new Response(null, {
-      status: 101,
-      webSocket: client
-    });
+    return new Response(
+      null,
+      {
+        status: 101,
+        webSocket: client
+      }
+    );
   }
 
-  async webSocketMessage(ws, message) {
-    const session =
-      ws.deserializeAttachment() ||
-      this.sessions.get(ws);
 
-    if (!session) return;
+  // ===========================================================
+  // RECEIVE WEBSOCKET MESSAGE
+  // ===========================================================
+
+  async webSocketMessage(
+    ws,
+    message
+  ) {
+    const session =
+      this.getSession(ws);
+
+    if (!session) {
+      return;
+    }
 
     let data;
 
     try {
-      data =
+      if (
         typeof message === "string"
-          ? JSON.parse(message)
-          : JSON.parse(
-              new TextDecoder().decode(message)
-            );
+      ) {
+        data =
+          JSON.parse(message);
+      } else {
+        data =
+          JSON.parse(
+            new TextDecoder().decode(
+              message
+            )
+          );
+      }
     } catch {
       this.send(ws, {
         type: "error",
-        message: "Invalid message."
+        message:
+          "Invalid message."
       });
 
       return;
     }
 
-    if (data.action === "message") {
-      await this.sendMessage(session, data.text);
+    // New message.
+    if (
+      data.action === "message"
+    ) {
+      await this.sendMessage(
+        session,
+        data.text
+      );
+
+      return;
     }
 
-    if (data.action === "edit") {
+    // Edit.
+    if (
+      data.action === "edit"
+    ) {
       await this.editMessage(
         session,
         data.id,
         data.text
       );
+
+      return;
     }
 
-    if (data.action === "delete") {
+    // Delete.
+    if (
+      data.action === "delete"
+    ) {
       await this.deleteMessage(
         session,
         data.id
       );
+
+      return;
     }
 
-    if (data.action === "pin") {
+    // Pin.
+    if (
+      data.action === "pin"
+    ) {
       await this.pinMessage(
         session,
         data.id
       );
+
+      return;
     }
   }
 
+
+  // ===========================================================
+  // WEBSOCKET CLOSE
+  // ===========================================================
+
   async webSocketClose(ws) {
     this.sessions.delete(ws);
+
     await this.sendMembers();
   }
+
+
+  // ===========================================================
+  // WEBSOCKET ERROR
+  // ===========================================================
 
   async webSocketError(ws) {
     this.sessions.delete(ws);
+
     await this.sendMembers();
   }
 
+
+  // ===========================================================
+  // GET SESSION
+  // ===========================================================
+
+  getSession(ws) {
+    try {
+      const attached =
+        ws.deserializeAttachment();
+
+      if (attached) {
+        return attached;
+      }
+    } catch {}
+
+    return this.sessions.get(ws);
+  }
+
+
+  // ===========================================================
+  // GET MESSAGE HISTORY
+  // ===========================================================
+
   getMessages() {
-    const rows = this.ctx.storage.sql
-      .exec(`
-        SELECT
-          id,
-          username,
-          avatar,
-          text,
-          created_at,
-          edited,
-          pinned
-        FROM messages
-        ORDER BY created_at ASC
-        LIMIT 500
-      `)
-      .toArray();
+    const rows =
+      this.ctx.storage.sql
+        .exec(`
+          SELECT
+            id,
+            username,
+            avatar,
+            text,
+            created_at,
+            edited,
+            pinned
+          FROM messages
+          ORDER BY created_at ASC
+          LIMIT 500
+        `)
+        .toArray();
 
     return rows.map(row => ({
       id: String(row.id),
-      username: String(row.username || "Guest"),
-      avatar: String(row.avatar || ""),
-      text: String(row.text || ""),
-      created_at: Number(row.created_at || Date.now()),
-      edited: Boolean(row.edited),
-      pinned: Boolean(row.pinned)
+
+      username:
+        String(
+          row.username ||
+          "Guest"
+        ),
+
+      avatar:
+        String(
+          row.avatar || ""
+        ),
+
+      text:
+        String(
+          row.text || ""
+        ),
+
+      created_at:
+        Number(
+          row.created_at ||
+          Date.now()
+        ),
+
+      edited:
+        Boolean(row.edited),
+
+      pinned:
+        Boolean(row.pinned)
     }));
   }
 
-  async sendMessage(session, text) {
-    text = String(text || "").trim();
 
-    if (!text) return;
+  // ===========================================================
+  // SEND NEW MESSAGE
+  // ===========================================================
 
-    if (text.length > 2000) return;
+  async sendMessage(
+    session,
+    text
+  ) {
+    text =
+      String(text || "")
+        .trim();
+
+    if (!text) {
+      return;
+    }
+
+    if (text.length > 2000) {
+      return;
+    }
 
     const message = {
-      id: crypto.randomUUID(),
-      username: session.username,
-      avatar: session.avatar || "",
+      id:
+        crypto.randomUUID(),
+
+      username:
+        session.username,
+
+      avatar:
+        session.avatar || "",
+
       text,
-      created_at: Date.now(),
+
+      created_at:
+        Date.now(),
+
       edited: false,
+
       pinned: false
     };
 
+    // Save first.
     this.ctx.storage.sql.exec(
       `
       INSERT INTO messages
-      (id, username, avatar, text, created_at, edited, pinned)
+      (
+        id,
+        username,
+        avatar,
+        text,
+        created_at,
+        edited,
+        pinned
+      )
       VALUES (?, ?, ?, ?, ?, ?, ?)
       `,
       message.id,
@@ -464,74 +731,170 @@ export class ChatRoom extends DurableObject {
       0
     );
 
+    /*
+     * IMPORTANT:
+     *
+     * Send the message to EVERY WebSocket currently
+     * connected to this Durable Object.
+     *
+     * That means:
+     * - the person who sent it sees it immediately
+     * - everyone else in the room sees it immediately
+     * - nobody needs to refresh
+     */
+
     this.broadcast({
       type: "message",
-      message
+
+      // Main format used by the newer frontend.
+      message,
+
+      // Also include the fields directly for compatibility
+      // with older frontend versions.
+      id: message.id,
+      username: message.username,
+      avatar: message.avatar,
+      text: message.text,
+      created_at: message.created_at,
+      edited: false,
+      pinned: false
     });
   }
 
-  async editMessage(session, id, text) {
-    text = String(text || "").trim();
 
-    if (!id || !text) return;
+  // ===========================================================
+  // EDIT MESSAGE
+  // ===========================================================
 
-    const rows = this.ctx.storage.sql
-      .exec(
-        `SELECT * FROM messages WHERE id = ?`,
-        id
-      )
-      .toArray();
+  async editMessage(
+    session,
+    id,
+    text
+  ) {
+    text =
+      String(text || "")
+        .trim();
+
+    if (!id || !text) {
+      return;
+    }
+
+    const rows =
+      this.ctx.storage.sql
+        .exec(
+          `
+          SELECT *
+          FROM messages
+          WHERE id = ?
+          `,
+          id
+        )
+        .toArray();
 
     const old = rows[0];
 
-    if (!old) return;
+    if (!old) {
+      return;
+    }
 
-    if (old.username !== session.username) return;
+    // Users can only edit their own messages.
+    if (
+      old.username !==
+      session.username
+    ) {
+      return;
+    }
 
     this.ctx.storage.sql.exec(
       `
       UPDATE messages
-      SET text = ?, edited = 1
+      SET
+        text = ?,
+        edited = 1
       WHERE id = ?
       `,
       text,
       id
     );
 
-    const message = {
+    const updated = {
       id: String(old.id),
-      username: String(old.username),
-      avatar: String(old.avatar || ""),
+
+      username:
+        String(old.username),
+
+      avatar:
+        String(old.avatar || ""),
+
       text,
-      created_at: Number(old.created_at),
+
+      created_at:
+        Number(old.created_at),
+
       edited: true,
-      pinned: Boolean(old.pinned)
+
+      pinned:
+        Boolean(old.pinned)
     };
 
     this.broadcast({
       type: "message_edit",
-      message
+      message: updated,
+
+      // Compatibility fields.
+      id: updated.id,
+      username: updated.username,
+      avatar: updated.avatar,
+      text: updated.text,
+      created_at: updated.created_at,
+      edited: true,
+      pinned: updated.pinned
     });
   }
 
-  async deleteMessage(session, id) {
-    if (!id) return;
 
-    const rows = this.ctx.storage.sql
-      .exec(
-        `SELECT * FROM messages WHERE id = ?`,
-        id
-      )
-      .toArray();
+  // ===========================================================
+  // DELETE MESSAGE
+  // ===========================================================
+
+  async deleteMessage(
+    session,
+    id
+  ) {
+    if (!id) {
+      return;
+    }
+
+    const rows =
+      this.ctx.storage.sql
+        .exec(
+          `
+          SELECT *
+          FROM messages
+          WHERE id = ?
+          `,
+          id
+        )
+        .toArray();
 
     const old = rows[0];
 
-    if (!old) return;
+    if (!old) {
+      return;
+    }
 
-    if (old.username !== session.username) return;
+    if (
+      old.username !==
+      session.username
+    ) {
+      return;
+    }
 
     this.ctx.storage.sql.exec(
-      `DELETE FROM messages WHERE id = ?`,
+      `
+      DELETE FROM messages
+      WHERE id = ?
+      `,
       id
     );
 
@@ -541,23 +904,46 @@ export class ChatRoom extends DurableObject {
     });
   }
 
-  async pinMessage(session, id) {
-    if (!id) return;
 
-    const rows = this.ctx.storage.sql
-      .exec(
-        `SELECT * FROM messages WHERE id = ?`,
-        id
-      )
-      .toArray();
+  // ===========================================================
+  // PIN MESSAGE
+  // ===========================================================
+
+  async pinMessage(
+    session,
+    id
+  ) {
+    if (!id) {
+      return;
+    }
+
+    const rows =
+      this.ctx.storage.sql
+        .exec(
+          `
+          SELECT *
+          FROM messages
+          WHERE id = ?
+          `,
+          id
+        )
+        .toArray();
 
     const old = rows[0];
 
-    if (!old) return;
+    if (!old) {
+      return;
+    }
 
-    if (old.username !== session.username) return;
+    if (
+      old.username !==
+      session.username
+    ) {
+      return;
+    }
 
-    const pinned = !Boolean(old.pinned);
+    const pinned =
+      !Boolean(old.pinned);
 
     this.ctx.storage.sql.exec(
       `
@@ -569,37 +955,76 @@ export class ChatRoom extends DurableObject {
       id
     );
 
-    const message = {
-      id: String(old.id),
-      username: String(old.username),
-      avatar: String(old.avatar || ""),
-      text: String(old.text || ""),
-      created_at: Number(old.created_at),
-      edited: Boolean(old.edited),
+    const updated = {
+      id:
+        String(old.id),
+
+      username:
+        String(old.username),
+
+      avatar:
+        String(old.avatar || ""),
+
+      text:
+        String(old.text || ""),
+
+      created_at:
+        Number(old.created_at),
+
+      edited:
+        Boolean(old.edited),
+
       pinned
     };
 
     this.broadcast({
       type: "message_edit",
-      message
+      message: updated,
+
+      id: updated.id,
+      username: updated.username,
+      avatar: updated.avatar,
+      text: updated.text,
+      created_at: updated.created_at,
+      edited: updated.edited,
+      pinned: updated.pinned
     });
   }
+
+
+  // ===========================================================
+  // HISTORY HTTP ENDPOINT
+  // ===========================================================
 
   async getHistory() {
     return json({
-      messages: this.getMessages()
+      messages:
+        this.getMessages()
     });
   }
 
+
+  // ===========================================================
+  // GET ROOMS
+  // ===========================================================
+
   async getRooms() {
     let rooms =
-      await this.ctx.storage.get("rooms");
+      await this.ctx.storage.get(
+        "rooms"
+      );
 
     if (!Array.isArray(rooms)) {
       rooms = [];
     }
 
-    if (!rooms.some(room => room.code === "general")) {
+    if (
+      !rooms.some(
+        room =>
+          room.code ===
+          "general"
+      )
+    ) {
       rooms.unshift({
         name: "General",
         code: "general"
@@ -616,34 +1041,65 @@ export class ChatRoom extends DurableObject {
     });
   }
 
+
+  // ===========================================================
+  // CREATE ROOM
+  // ===========================================================
+
   async createRoom(request) {
     let body;
 
     try {
-      body = await request.json();
+      body =
+        await request.json();
     } catch {
-      return json({
-        error: "Invalid request."
-      }, 400);
+      return json(
+        {
+          error:
+            "Invalid request."
+        },
+        400
+      );
     }
 
-    const name = cleanRoomName(body.name);
-    const code = cleanRoomCode(body.code);
+    const name =
+      cleanRoomName(
+        body.name
+      );
+
+    const code =
+      cleanRoomCode(
+        body.code
+      );
 
     if (!name) {
-      return json({
-        error: "Room name is required."
-      }, 400);
+      return json(
+        {
+          error:
+            "Room name is required."
+        },
+        400
+      );
     }
 
-    if (!/^[a-z0-9_-]{2,30}$/.test(code)) {
-      return json({
-        error: "Invalid room code."
-      }, 400);
+    if (
+      !/^[a-z0-9_-]{2,30}$/.test(
+        code
+      )
+    ) {
+      return json(
+        {
+          error:
+            "Invalid room code."
+        },
+        400
+      );
     }
 
     let rooms =
-      await this.ctx.storage.get("rooms");
+      await this.ctx.storage.get(
+        "rooms"
+      );
 
     if (!Array.isArray(rooms)) {
       rooms = [];
@@ -651,12 +1107,18 @@ export class ChatRoom extends DurableObject {
 
     if (
       rooms.some(
-        room => room.code === code
+        room =>
+          room.code ===
+          code
       )
     ) {
-      return json({
-        error: "That room already exists."
-      }, 409);
+      return json(
+        {
+          error:
+            "That room already exists."
+        },
+        409
+      );
     }
 
     const room = {
@@ -677,23 +1139,38 @@ export class ChatRoom extends DurableObject {
     });
   }
 
+
+  // ===========================================================
+  // SEND ONLINE MEMBERS
+  // ===========================================================
+
   async sendMembers() {
     const members = [];
 
-    for (const ws of this.ctx.getWebSockets()) {
-      if (ws.readyState !== WebSocket.OPEN) {
+    for (
+      const ws of
+      this.ctx.getWebSockets()
+    ) {
+      if (
+        ws.readyState !==
+        WebSocket.OPEN
+      ) {
         continue;
       }
 
       const session =
-        ws.deserializeAttachment() ||
-        this.sessions.get(ws);
+        this.getSession(ws);
 
-      if (!session) continue;
+      if (!session) {
+        continue;
+      }
 
       members.push({
-        username: session.username,
-        avatar: session.avatar || ""
+        username:
+          session.username,
+
+        avatar:
+          session.avatar || ""
       });
     }
 
@@ -703,40 +1180,83 @@ export class ChatRoom extends DurableObject {
     });
   }
 
-  broadcast(data) {
-    const output = JSON.stringify(data);
 
-    for (const ws of this.ctx.getWebSockets()) {
+  // ===========================================================
+  // BROADCAST TO EVERYONE
+  // ===========================================================
+
+  broadcast(data) {
+    const output =
+      JSON.stringify(data);
+
+    const sockets =
+      this.ctx.getWebSockets();
+
+    for (
+      const ws of sockets
+    ) {
       try {
-        if (ws.readyState === WebSocket.OPEN) {
+        if (
+          ws.readyState ===
+          WebSocket.OPEN
+        ) {
           ws.send(output);
         }
-      } catch {}
+      } catch (error) {
+        console.error(
+          "WebSocket send error:",
+          error
+        );
+      }
     }
   }
 
+
+  // ===========================================================
+  // SEND TO ONE SOCKET
+  // ===========================================================
+
   send(ws, data) {
     try {
-      if (ws.readyState === WebSocket.OPEN) {
-        ws.send(JSON.stringify(data));
+      if (
+        ws.readyState ===
+        WebSocket.OPEN
+      ) {
+        ws.send(
+          JSON.stringify(data)
+        );
       }
     } catch {}
   }
 
+
+  // ===========================================================
+  // DEV USER LIST
+  // ===========================================================
+
   async getDevUsers() {
     const users = [];
 
-    for (const ws of this.ctx.getWebSockets()) {
+    for (
+      const ws of
+      this.ctx.getWebSockets()
+    ) {
       const session =
-        ws.deserializeAttachment() ||
-        this.sessions.get(ws);
+        this.getSession(ws);
 
-      if (!session) continue;
+      if (!session) {
+        continue;
+      }
 
       users.push({
-        username: session.username,
-        avatar: session.avatar || "",
-        room: session.room
+        username:
+          session.username,
+
+        avatar:
+          session.avatar || "",
+
+        room:
+          session.room
       });
     }
 
@@ -745,43 +1265,71 @@ export class ChatRoom extends DurableObject {
     });
   }
 
+
+  // ===========================================================
+  // DEV ACTION
+  // ===========================================================
+
   async devAction(request) {
     let body;
 
     try {
-      body = await request.json();
+      body =
+        await request.json();
     } catch {
-      return json({
-        error: "Invalid request."
-      }, 400);
+      return json(
+        {
+          error:
+            "Invalid request."
+        },
+        400
+      );
     }
 
     const target =
-      String(body.target || "").trim();
+      String(
+        body.target || ""
+      ).trim();
 
     const action =
-      String(body.action || "");
+      String(
+        body.action || ""
+      );
 
     let seconds =
-      Number(body.seconds) || 60;
+      Number(body.seconds) ||
+      60;
 
-    seconds = Math.max(
-      1,
-      Math.min(seconds, 86400)
-    );
+    seconds =
+      Math.max(
+        1,
+        Math.min(
+          seconds,
+          86400
+        )
+      );
 
-    for (const ws of this.ctx.getWebSockets()) {
+    for (
+      const ws of
+      this.ctx.getWebSockets()
+    ) {
       const session =
-        ws.deserializeAttachment() ||
-        this.sessions.get(ws);
+        this.getSession(ws);
 
-      if (!session) continue;
-
-      if (session.username !== target) {
+      if (!session) {
         continue;
       }
 
-      if (action === "kick") {
+      if (
+        session.username !==
+        target
+      ) {
+        continue;
+      }
+
+      if (
+        action === "kick"
+      ) {
         this.send(ws, {
           type: "error",
           message:
@@ -789,11 +1337,16 @@ export class ChatRoom extends DurableObject {
         });
 
         try {
-          ws.close(4001, "Kicked");
+          ws.close(
+            4001,
+            "Kicked"
+          );
         } catch {}
       }
 
-      if (action === "timeout") {
+      if (
+        action === "timeout"
+      ) {
         this.send(ws, {
           type: "error",
           message:
@@ -801,7 +1354,10 @@ export class ChatRoom extends DurableObject {
         });
 
         try {
-          ws.close(4002, "Timed out");
+          ws.close(
+            4002,
+            "Timed out"
+          );
         } catch {}
       }
     }
@@ -812,12 +1368,18 @@ export class ChatRoom extends DurableObject {
   }
 }
 
+
+// =============================================================
+// CLEANING FUNCTIONS
+// =============================================================
+
 function cleanName(value) {
   return String(value || "")
     .replace(/[<>]/g, "")
     .trim()
     .slice(0, 24);
 }
+
 
 function cleanRoomName(value) {
   return String(value || "")
@@ -826,46 +1388,84 @@ function cleanRoomName(value) {
     .slice(0, 40);
 }
 
+
 function cleanRoomCode(value) {
   return String(value || "")
     .toLowerCase()
     .trim()
-    .replace(/[^a-z0-9_-]/g, "")
+    .replace(
+      /[^a-z0-9_-]/g,
+      ""
+    )
     .slice(0, 30);
 }
 
+
 function cleanAvatar(value) {
   const valueString =
-    String(value || "").trim();
+    String(value || "")
+      .trim();
 
   if (
-    valueString.startsWith("https://") ||
-    valueString.startsWith("http://")
+    valueString.startsWith(
+      "https://"
+    ) ||
+    valueString.startsWith(
+      "http://"
+    )
   ) {
-    return valueString.slice(0, 500);
+    return valueString.slice(
+      0,
+      500
+    );
   }
 
   return "";
 }
 
-function json(data, status = 200) {
+
+// =============================================================
+// JSON RESPONSE
+// =============================================================
+
+function json(
+  data,
+  status = 200
+) {
   return new Response(
     JSON.stringify(data),
     {
       status,
+
       headers: {
-        "Content-Type": "application/json",
-        "Cache-Control": "no-store"
+        "Content-Type":
+          "application/json",
+
+        "Cache-Control":
+          "no-store"
       }
     }
   );
 }
 
-function isDevRequest(request) {
-  const header =
-    request.headers.get("Authorization") || "";
 
-  if (!header.startsWith("Bearer ")) {
+// =============================================================
+// DEV AUTH
+// =============================================================
+
+function isDevRequest(
+  request
+) {
+  const header =
+    request.headers.get(
+      "Authorization"
+    ) || "";
+
+  if (
+    !header.startsWith(
+      "Bearer "
+    )
+  ) {
     return false;
   }
 
@@ -874,11 +1474,14 @@ function isDevRequest(request) {
       header.slice(7);
 
     const data =
-      JSON.parse(atob(token));
+      JSON.parse(
+        atob(token)
+      );
 
     return (
       data.dev === true &&
-      data.secret === DEV_PASSKEY
+      data.secret ===
+        DEV_PASSKEY
     );
   } catch {
     return false;
