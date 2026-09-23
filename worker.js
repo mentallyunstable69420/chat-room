@@ -3,66 +3,78 @@ import { DurableObject } from "cloudflare:workers";
 const DEV_PASSKEY = "password";
 
 export default {
-  async fetch(request, env, ctx) {
+  async fetch(request, env) {
     const url = new URL(request.url);
-    const path = url.pathname;
 
-    if (path === "/api/rooms" && request.method === "GET") {
+    // ROOM LIST
+    if (url.pathname === "/api/rooms") {
       const id = env.CHAT_ROOM.idFromName("__ROOM_LOBBY__");
       const room = env.CHAT_ROOM.get(id);
-      return room.fetch(new Request(url.toString(), request));
+      return room.fetch(request);
     }
 
-    if (path === "/api/rooms" && request.method === "POST") {
-      const id = env.CHAT_ROOM.idFromName("__ROOM_LOBBY__");
-      const room = env.CHAT_ROOM.get(id);
-      return room.fetch(new Request(url.toString(), request));
-    }
-
-    if (path === "/api/history" && request.method === "GET") {
-      const roomCode = url.searchParams.get("room") || "general";
-      const id = env.CHAT_ROOM.idFromName(roomCode);
-      const room = env.CHAT_ROOM.get(id);
-      return room.fetch(new Request(url.toString(), request));
-    }
-
-    if (path === "/api/ws" && request.headers.get("Upgrade") === "websocket") {
+    // HISTORY
+    if (url.pathname === "/api/history") {
       const roomCode = cleanRoomCode(url.searchParams.get("room")) || "general";
+      const id = env.CHAT_ROOM.idFromName(roomCode);
+      const room = env.CHAT_ROOM.get(id);
+      return room.fetch(request);
+    }
+
+    // WEBSOCKET
+    if (
+      url.pathname === "/api/ws" &&
+      request.headers.get("Upgrade")?.toLowerCase() === "websocket"
+    ) {
+      const roomCode =
+        cleanRoomCode(url.searchParams.get("room")) || "general";
+
+      const name =
+        cleanName(url.searchParams.get("name")) || "Guest";
+
+      const avatar =
+        cleanAvatar(url.searchParams.get("avatar"));
 
       const id = env.CHAT_ROOM.idFromName(roomCode);
       const room = env.CHAT_ROOM.get(id);
+
+      const wsUrl = new URL("https://chatroom.internal/ws");
+      wsUrl.searchParams.set("room", roomCode);
+      wsUrl.searchParams.set("name", name);
+      wsUrl.searchParams.set("avatar", avatar);
 
       return room.fetch(
-        new Request(
-          `https://chatroom.internal/ws?room=${encodeURIComponent(roomCode)}&name=${encodeURIComponent(url.searchParams.get("name") || "Guest")}&avatar=${encodeURIComponent(url.searchParams.get("avatar") || "")}`,
-          request
-        )
+        new Request(wsUrl.toString(), request)
       );
     }
 
-    if (path === "/api/dev/login" && request.method === "POST") {
+    // DEV LOGIN
+    if (url.pathname === "/api/dev/login" && request.method === "POST") {
+      let body;
+
       try {
-        const body = await request.json();
-
-        if (body.passkey !== DEV_PASSKEY) {
-          return json({ error: "Invalid passkey." }, 401);
-        }
-
-        const token = btoa(
-          JSON.stringify({
-            dev: true,
-            issued: Date.now(),
-            secret: DEV_PASSKEY
-          })
-        );
-
-        return json({ token });
+        body = await request.json();
       } catch {
         return json({ error: "Invalid request." }, 400);
       }
+
+      if (body.passkey !== DEV_PASSKEY) {
+        return json({ error: "Invalid passkey." }, 401);
+      }
+
+      const token = btoa(
+        JSON.stringify({
+          dev: true,
+          secret: DEV_PASSKEY,
+          time: Date.now()
+        })
+      );
+
+      return json({ token });
     }
 
-    if (path === "/api/dev/users" && request.method === "GET") {
+    // DEV USERS
+    if (url.pathname === "/api/dev/users") {
       if (!isDevRequest(request)) {
         return json({ error: "Unauthorized." }, 401);
       }
@@ -71,14 +83,12 @@ export default {
       const room = env.CHAT_ROOM.get(id);
 
       return room.fetch(
-        new Request("https://chatroom.internal/dev/users", {
-          method: "GET",
-          headers: request.headers
-        })
+        new Request("https://chatroom.internal/dev/users")
       );
     }
 
-    if (path === "/api/dev/action" && request.method === "POST") {
+    // DEV ACTION
+    if (url.pathname === "/api/dev/action" && request.method === "POST") {
       if (!isDevRequest(request)) {
         return json({ error: "Unauthorized." }, 401);
       }
@@ -89,8 +99,10 @@ export default {
       return room.fetch(
         new Request("https://chatroom.internal/dev/action", {
           method: "POST",
-          headers: request.headers,
-          body: await request.text()
+          body: await request.text(),
+          headers: {
+            "Content-Type": "application/json"
+          }
         })
       );
     }
@@ -100,67 +112,69 @@ export default {
 };
 
 export class ChatRoom extends DurableObject {
+
   constructor(ctx, env) {
     super(ctx, env);
 
     this.ctx = ctx;
     this.env = env;
 
-    // Restore any WebSocket sessions after hibernation.
-    // Cloudflare recommends using getWebSockets() plus
-    // serializeAttachment()/deserializeAttachment() for this.
     this.sessions = new Map();
 
-    for (const ws of this.ctx.getWebSockets()) {
-      const attachment = ws.deserializeAttachment();
+    for (const ws of ctx.getWebSockets()) {
+      const data = ws.deserializeAttachment();
 
-      if (attachment) {
-        this.sessions.set(ws, attachment);
+      if (data) {
+        this.sessions.set(ws, data);
       }
     }
 
-    try {
-      this.ctx.setWebSocketAutoResponse(
-        new WebSocketRequestResponsePair("ping", "pong")
-      );
-    } catch {}
-
-    this.initialized = false;
+    this.ready = false;
   }
 
-  async ensureDatabase() {
-    if (this.initialized) return;
+  async setup() {
+    if (this.ready) return;
 
-    this.initialized = true;
+    this.ready = true;
 
-    try {
-      this.ctx.storage.sql.exec(`
-        CREATE TABLE IF NOT EXISTS messages (
-          id TEXT PRIMARY KEY,
-          username TEXT NOT NULL,
-          avatar TEXT DEFAULT '',
-          text TEXT NOT NULL,
-          created_at INTEGER NOT NULL,
-          edited INTEGER DEFAULT 0,
-          pinned INTEGER DEFAULT 0
-        )
-      `);
-    } catch (e) {
-      console.error("Database initialization error:", e);
+    this.ctx.storage.sql.exec(`
+      CREATE TABLE IF NOT EXISTS messages (
+        id TEXT PRIMARY KEY,
+        username TEXT NOT NULL,
+        avatar TEXT DEFAULT '',
+        text TEXT NOT NULL,
+        created_at INTEGER NOT NULL,
+        edited INTEGER DEFAULT 0,
+        pinned INTEGER DEFAULT 0
+      )
+    `);
+
+    // Make sure the general room exists.
+    let rooms = await this.ctx.storage.get("rooms");
+
+    if (!Array.isArray(rooms)) {
+      rooms = [
+        {
+          name: "General",
+          code: "general"
+        }
+      ];
+
+      await this.ctx.storage.put("rooms", rooms);
     }
   }
 
   async fetch(request) {
-    await this.ensureDatabase();
+    await this.setup();
 
     const url = new URL(request.url);
 
     if (url.pathname === "/ws") {
-      return this.handleWebSocket(url);
+      return this.connect(url);
     }
 
     if (url.pathname === "/api/history") {
-      return this.history();
+      return this.getHistory();
     }
 
     if (url.pathname === "/api/rooms" && request.method === "GET") {
@@ -172,7 +186,7 @@ export class ChatRoom extends DurableObject {
     }
 
     if (url.pathname === "/dev/users") {
-      return this.devUsers();
+      return this.getDevUsers();
     }
 
     if (url.pathname === "/dev/action") {
@@ -182,41 +196,51 @@ export class ChatRoom extends DurableObject {
     return new Response("Not found", { status: 404 });
   }
 
-  async handleWebSocket(url) {
+  async connect(url) {
     const room =
       cleanRoomCode(url.searchParams.get("room")) || "general";
 
-    const name =
+    const username =
       cleanName(url.searchParams.get("name")) || "Guest";
 
     const avatar =
       cleanAvatar(url.searchParams.get("avatar"));
 
-    // Make sure this Durable Object really represents the requested room.
-    const roomExists = await this.roomExists(room);
-
-    if (!roomExists) {
-      return new Response("Room does not exist.", { status: 404 });
+    if (!(await this.roomExists(room))) {
+      return new Response("Room does not exist.", {
+        status: 404
+      });
     }
 
-    const [client, server] = Object.values(new WebSocketPair());
+    const pair = new WebSocketPair();
+
+    const client = pair[0];
+    const server = pair[1];
 
     const session = {
-      username: name,
+      username,
       avatar,
       room,
       joinedAt: Date.now()
     };
 
-    // Hibernatable WebSocket.
-    this.ctx.acceptWebSocket(server);
-
-    // Persist connection information so it survives DO hibernation.
     server.serializeAttachment(session);
+
+    this.ctx.acceptWebSocket(server);
 
     this.sessions.set(server, session);
 
-    await this.broadcastMembers();
+    // Send existing messages immediately.
+    const messages = this.getMessages();
+
+    server.send(
+      JSON.stringify({
+        type: "history",
+        messages
+      })
+    );
+
+    await this.sendMembers();
 
     return new Response(null, {
       status: 101,
@@ -224,29 +248,20 @@ export class ChatRoom extends DurableObject {
     });
   }
 
-  async webSocketMessage(ws, rawMessage) {
-    await this.ensureDatabase();
-
+  async webSocketMessage(ws, message) {
     const session =
       ws.deserializeAttachment() ||
       this.sessions.get(ws);
 
-    if (!session) {
-      try {
-        ws.close(1011, "Session missing");
-      } catch {}
-      return;
-    }
-
-    this.sessions.set(ws, session);
+    if (!session) return;
 
     let data;
 
     try {
       data =
-        typeof rawMessage === "string"
-          ? JSON.parse(rawMessage)
-          : JSON.parse(new TextDecoder().decode(rawMessage));
+        typeof message === "string"
+          ? JSON.parse(message)
+          : JSON.parse(new TextDecoder().decode(message));
     } catch {
       this.send(ws, {
         type: "error",
@@ -256,72 +271,95 @@ export class ChatRoom extends DurableObject {
     }
 
     if (data.action === "message") {
-      await this.createMessage(ws, session, data.text);
-      return;
+      await this.sendMessage(session, data.text);
     }
 
     if (data.action === "edit") {
-      await this.editMessage(ws, session, data.id, data.text);
-      return;
+      await this.editMessage(session, data.id, data.text);
     }
 
     if (data.action === "delete") {
-      await this.deleteMessage(ws, session, data.id);
-      return;
+      await this.deleteMessage(session, data.id);
     }
 
     if (data.action === "pin") {
-      await this.pinMessage(ws, session, data.id);
-      return;
+      await this.pinMessage(session, data.id);
     }
   }
 
   async webSocketClose(ws) {
     this.sessions.delete(ws);
-    await this.broadcastMembers();
+    await this.sendMembers();
   }
 
   async webSocketError(ws) {
     this.sessions.delete(ws);
-    await this.broadcastMembers();
+    await this.sendMembers();
   }
 
-  async createMessage(ws, session, text) {
+  getMessages() {
+    const rows = this.ctx.storage.sql.exec(`
+      SELECT
+        id,
+        username,
+        avatar,
+        text,
+        created_at,
+        edited,
+        pinned
+      FROM messages
+      ORDER BY created_at ASC
+      LIMIT 500
+    `).toArray();
+
+    return rows.map(row => ({
+      id: String(row.id),
+      username: String(row.username || ""),
+      avatar: String(row.avatar || ""),
+
+      // IMPORTANT:
+      // Always send the actual message text.
+      text: String(row.text || ""),
+
+      created_at: Number(row.created_at),
+      edited: Boolean(row.edited),
+      pinned: Boolean(row.pinned)
+    }));
+  }
+
+  async sendMessage(session, text) {
     text = String(text || "").trim();
 
     if (!text) return;
 
     if (text.length > 2000) {
-      this.send(ws, {
-        type: "error",
-        message: "Message is too long."
-      });
       return;
     }
 
-    const id = crypto.randomUUID();
-    const createdAt = Date.now();
-
-    this.ctx.storage.sql.exec(
-      `INSERT INTO messages
-       (id, username, avatar, text, created_at, edited, pinned)
-       VALUES (?, ?, ?, ?, ?, 0, 0)`,
-      id,
-      session.username,
-      session.avatar || "",
-      text,
-      createdAt
-    );
-
     const message = {
-      id,
+      id: crypto.randomUUID(),
       username: session.username,
       avatar: session.avatar || "",
-      text,
-      created_at: createdAt,
+      text: text,
+      created_at: Date.now(),
       edited: false,
       pinned: false
     };
+
+    this.ctx.storage.sql.exec(
+      `
+      INSERT INTO messages
+      (id, username, avatar, text, created_at, edited, pinned)
+      VALUES (?, ?, ?, ?, ?, ?, ?)
+      `,
+      message.id,
+      message.username,
+      message.avatar,
+      message.text,
+      message.created_at,
+      0,
+      0
+    );
 
     this.broadcast({
       type: "message",
@@ -329,66 +367,61 @@ export class ChatRoom extends DurableObject {
     });
   }
 
-  async editMessage(ws, session, id, text) {
+  async editMessage(session, id, text) {
     text = String(text || "").trim();
 
-    if (!id || !text || text.length > 2000) return;
+    if (!id || !text) return;
 
     const rows = this.ctx.storage.sql.exec(
-      `SELECT * FROM messages WHERE id = ? LIMIT 1`,
+      `SELECT * FROM messages WHERE id = ?`,
       id
     ).toArray();
 
-    const msg = rows[0];
+    const old = rows[0];
 
-    if (!msg) return;
+    if (!old) return;
 
-    if (msg.username !== session.username) {
-      this.send(ws, {
-        type: "error",
-        message: "You can only edit your own messages."
-      });
-      return;
-    }
+    if (old.username !== session.username) return;
 
     this.ctx.storage.sql.exec(
-      `UPDATE messages SET text = ?, edited = 1 WHERE id = ?`,
+      `
+      UPDATE messages
+      SET text = ?, edited = 1
+      WHERE id = ?
+      `,
       text,
       id
     );
 
-    const updated = {
-      ...msg,
-      text,
+    const message = {
+      id: String(old.id),
+      username: String(old.username),
+      avatar: String(old.avatar || ""),
+      text: text,
+      created_at: Number(old.created_at),
       edited: true,
-      pinned: Boolean(msg.pinned)
+      pinned: Boolean(old.pinned)
     };
 
     this.broadcast({
       type: "message_edit",
-      message: updated
+      message
     });
   }
 
-  async deleteMessage(ws, session, id) {
+  async deleteMessage(session, id) {
     if (!id) return;
 
     const rows = this.ctx.storage.sql.exec(
-      `SELECT * FROM messages WHERE id = ? LIMIT 1`,
+      `SELECT * FROM messages WHERE id = ?`,
       id
     ).toArray();
 
-    const msg = rows[0];
+    const old = rows[0];
 
-    if (!msg) return;
+    if (!old) return;
 
-    if (msg.username !== session.username) {
-      this.send(ws, {
-        type: "error",
-        message: "You can only delete your own messages."
-      });
-      return;
-    }
+    if (old.username !== session.username) return;
 
     this.ctx.storage.sql.exec(
       `DELETE FROM messages WHERE id = ?`,
@@ -401,73 +434,63 @@ export class ChatRoom extends DurableObject {
     });
   }
 
-  async pinMessage(ws, session, id) {
+  async pinMessage(session, id) {
     if (!id) return;
 
     const rows = this.ctx.storage.sql.exec(
-      `SELECT * FROM messages WHERE id = ? LIMIT 1`,
+      `SELECT * FROM messages WHERE id = ?`,
       id
     ).toArray();
 
-    const msg = rows[0];
+    const old = rows[0];
 
-    if (!msg) return;
+    if (!old) return;
 
-    if (msg.username !== session.username) {
-      this.send(ws, {
-        type: "error",
-        message: "You can only pin your own messages."
-      });
-      return;
-    }
+    if (old.username !== session.username) return;
 
-    const newPinned = !Boolean(msg.pinned);
+    const pinned = !Boolean(old.pinned);
 
     this.ctx.storage.sql.exec(
-      `UPDATE messages SET pinned = ? WHERE id = ?`,
-      newPinned ? 1 : 0,
+      `
+      UPDATE messages
+      SET pinned = ?
+      WHERE id = ?
+      `,
+      pinned ? 1 : 0,
       id
     );
 
-    const updated = {
-      ...msg,
-      pinned: newPinned,
-      edited: Boolean(msg.edited)
+    const message = {
+      id: String(old.id),
+      username: String(old.username),
+      avatar: String(old.avatar || ""),
+      text: String(old.text || ""),
+      created_at: Number(old.created_at),
+      edited: Boolean(old.edited),
+      pinned
     };
 
     this.broadcast({
       type: "message_edit",
-      message: updated
+      message
     });
   }
 
-  async history() {
-    const rows = this.ctx.storage.sql.exec(
-      `SELECT * FROM messages ORDER BY created_at ASC LIMIT 500`
-    ).toArray();
-
-    const messages = rows.map(row => ({
-      ...row,
-      edited: Boolean(row.edited),
-      pinned: Boolean(row.pinned)
-    }));
-
-    return json({ messages });
+  async getHistory() {
+    return json({
+      messages: this.getMessages()
+    });
   }
 
   async getRooms() {
-    let rooms = [];
+    let rooms =
+      await this.ctx.storage.get("rooms");
 
-    try {
-      const stored =
-        await this.ctx.storage.get("rooms");
+    if (!Array.isArray(rooms)) {
+      rooms = [];
+    }
 
-      if (Array.isArray(stored)) {
-        rooms = stored;
-      }
-    } catch {}
-
-    if (!rooms.some(r => r.code === "general")) {
+    if (!rooms.some(room => room.code === "general")) {
       rooms.unshift({
         name: "General",
         code: "general"
@@ -485,64 +508,76 @@ export class ChatRoom extends DurableObject {
     try {
       body = await request.json();
     } catch {
-      return json({ error: "Invalid JSON." }, 400);
+      return json({
+        error: "Invalid request."
+      }, 400);
     }
 
     const name = cleanRoomName(body.name);
     const code = cleanRoomCode(body.code);
 
     if (!name) {
-      return json({ error: "Room name is required." }, 400);
+      return json({
+        error: "Room name is required."
+      }, 400);
     }
 
-    if (!code || !/^[a-z0-9_-]{2,30}$/.test(code)) {
-      return json({ error: "Invalid room code." }, 400);
+    if (!/^[a-z0-9_-]{2,30}$/.test(code)) {
+      return json({
+        error: "Invalid room code."
+      }, 400);
     }
 
     let rooms =
-      (await this.ctx.storage.get("rooms")) || [];
+      await this.ctx.storage.get("rooms");
 
-    if (!Array.isArray(rooms)) rooms = [];
-
-    if (rooms.some(r => r.code === code)) {
-      return json({ error: "That room code already exists." }, 409);
+    if (!Array.isArray(rooms)) {
+      rooms = [];
     }
 
-    rooms.push({
+    if (rooms.some(room => room.code === code)) {
+      return json({
+        error: "That room already exists."
+      }, 409);
+    }
+
+    const room = {
       name,
       code
-    });
+    };
+
+    rooms.push(room);
 
     await this.ctx.storage.put("rooms", rooms);
 
     return json({
       success: true,
-      room: { name, code }
+      room
     });
   }
 
   async roomExists(code) {
-    let rooms =
-      (await this.ctx.storage.get("rooms")) || [];
-
-    if (!Array.isArray(rooms)) rooms = [];
-
     if (code === "general") return true;
 
-    return rooms.some(r => r.code === code);
+    const rooms =
+      await this.ctx.storage.get("rooms");
+
+    if (!Array.isArray(rooms)) return false;
+
+    return rooms.some(room => room.code === code);
   }
 
-  async broadcastMembers() {
+  async sendMembers() {
     const members = [];
 
     for (const ws of this.ctx.getWebSockets()) {
+      if (ws.readyState !== WebSocket.OPEN) continue;
+
       const session =
         ws.deserializeAttachment() ||
         this.sessions.get(ws);
 
       if (!session) continue;
-
-      if (ws.readyState !== WebSocket.OPEN) continue;
 
       members.push({
         username: session.username,
@@ -557,18 +592,14 @@ export class ChatRoom extends DurableObject {
   }
 
   broadcast(data) {
-    const payload = JSON.stringify(data);
+    const output = JSON.stringify(data);
 
     for (const ws of this.ctx.getWebSockets()) {
       try {
         if (ws.readyState === WebSocket.OPEN) {
-          ws.send(payload);
+          ws.send(output);
         }
-      } catch {
-        try {
-          ws.close();
-        } catch {}
-      }
+      } catch {}
     }
   }
 
@@ -580,7 +611,7 @@ export class ChatRoom extends DurableObject {
     } catch {}
   }
 
-  async devUsers() {
+  async getDevUsers() {
     const users = [];
 
     for (const ws of this.ctx.getWebSockets()) {
@@ -606,22 +637,19 @@ export class ChatRoom extends DurableObject {
     try {
       body = await request.json();
     } catch {
-      return json({ error: "Invalid JSON." }, 400);
+      return json({
+        error: "Invalid request."
+      }, 400);
     }
 
-    const action = body.action;
     const target = String(body.target || "").trim();
+    const action = String(body.action || "");
 
-    if (!target) {
-      return json({ error: "Target is required." }, 400);
-    }
+    let seconds = Number(body.seconds) || 60;
 
-    const seconds = Math.max(
+    seconds = Math.max(
       1,
-      Math.min(
-        Number(body.seconds) || 60,
-        86400
-      )
+      Math.min(seconds, 86400)
     );
 
     for (const ws of this.ctx.getWebSockets()) {
@@ -636,37 +664,29 @@ export class ChatRoom extends DurableObject {
       if (action === "kick") {
         this.send(ws, {
           type: "error",
-          message: "You have been kicked from this chatroom."
+          message: "You were kicked from the chatroom."
         });
 
         try {
           ws.close(4001, "Kicked");
         } catch {}
-
-        continue;
       }
 
       if (action === "timeout") {
         this.send(ws, {
           type: "error",
           message:
-            "You have been timed out for " +
-            seconds +
-            " seconds."
+            `You were timed out for ${seconds} seconds.`
         });
 
         try {
           ws.close(4002, "Timed out");
         } catch {}
-
-        continue;
       }
     }
 
     return json({
-      success: true,
-      action,
-      seconds
+      success: true
     });
   }
 }
@@ -694,41 +714,45 @@ function cleanRoomCode(value) {
 }
 
 function cleanAvatar(value) {
-  const avatar = String(value || "").trim();
-
-  if (!avatar) return "";
+  const valueString = String(value || "").trim();
 
   if (
-    avatar.startsWith("https://") ||
-    avatar.startsWith("http://")
+    valueString.startsWith("https://") ||
+    valueString.startsWith("http://")
   ) {
-    return avatar.slice(0, 500);
+    return valueString.slice(0, 500);
   }
 
   return "";
 }
 
 function json(data, status = 200) {
-  return new Response(JSON.stringify(data), {
-    status,
-    headers: {
-      "Content-Type": "application/json",
-      "Cache-Control": "no-store"
+  return new Response(
+    JSON.stringify(data),
+    {
+      status,
+      headers: {
+        "Content-Type": "application/json",
+        "Cache-Control": "no-store"
+      }
     }
-  });
+  );
 }
 
 function isDevRequest(request) {
-  const auth =
+  const header =
     request.headers.get("Authorization") || "";
 
-  if (!auth.startsWith("Bearer ")) {
+  if (!header.startsWith("Bearer ")) {
     return false;
   }
 
   try {
-    const token = auth.slice(7);
-    const data = JSON.parse(atob(token));
+    const token = header.slice(7);
+
+    const data = JSON.parse(
+      atob(token)
+    );
 
     return (
       data.dev === true &&
