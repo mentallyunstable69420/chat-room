@@ -3,795 +3,2678 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Chatroom</title>
+
+<title>Chat Room</title>
+
 <style>
-*{box-sizing:border-box}
-:root{
-  --bg:#0f1117;--panel:#171a23;--panel2:#1d2130;--border:#2b3040;
-  --text:#f4f6fb;--muted:#9299aa;--accent:#6c8cff;--danger:#ff5d6c;
-  --bubble:#252a38;--input:#12151d;
+* {
+  box-sizing: border-box;
 }
-body.light{
-  --bg:#f3f5f8;--panel:#fff;--panel2:#eef1f5;--border:#d9dee7;
-  --text:#171a21;--muted:#687080;--accent:#4f6ff0;--danger:#d9364d;
-  --bubble:#e8ebf1;--input:#f7f8fa;
+
+:root {
+  --bg: #0f1115;
+  --panel: #181b22;
+  --panel2: #20242d;
+  --border: #303541;
+  --text: #f2f4f8;
+  --muted: #9ca3af;
+  --accent: #5865f2;
+  --danger: #ed4245;
+  --input: #111318;
 }
-body{
-  margin:0;background:var(--bg);color:var(--text);
-  font-family:Arial,Helvetica,sans-serif;height:100vh;overflow:hidden;
+
+body.light {
+  --bg: #f3f4f6;
+  --panel: #ffffff;
+  --panel2: #eef0f4;
+  --border: #d5d9e0;
+  --text: #17191d;
+  --muted: #626875;
+  --input: #f7f8fa;
 }
-button,input{font:inherit}
-button{cursor:pointer}
-.app{display:flex;height:100vh}
-.sidebar{
-  width:260px;background:var(--panel);border-right:1px solid var(--border);
-  display:flex;flex-direction:column;flex-shrink:0;
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font-family: Arial, Helvetica, sans-serif;
+  height: 100vh;
+  overflow: hidden;
 }
-.brand{
-  padding:18px;font-size:20px;font-weight:700;border-bottom:1px solid var(--border);
+
+button,
+input,
+textarea {
+  font: inherit;
 }
-.sidebar-section{padding:12px}
-.section-title{
-  color:var(--muted);font-size:12px;font-weight:700;
-  text-transform:uppercase;margin:5px 6px 9px;
+
+button {
+  cursor: pointer;
 }
-.room{
-  padding:10px 12px;border-radius:8px;display:flex;align-items:center;
-  justify-content:space-between;gap:8px;margin-bottom:4px;
+
+.app {
+  display: flex;
+  height: 100vh;
 }
-.room:hover{background:var(--panel2)}
-.room.active{background:var(--accent);color:white}
-.room-name{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.room-code{font-size:10px;opacity:.7}
-.add-room{
-  width:100%;padding:9px;border:1px dashed var(--border);
-  background:transparent;color:var(--muted);border-radius:8px;margin-top:5px;
+
+/* =========================================================
+   SIDEBAR
+   ========================================================= */
+
+.sidebar {
+  width: 250px;
+  background: var(--panel);
+  border-right: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  flex-shrink: 0;
 }
-.add-room:hover{color:var(--text);border-color:var(--accent)}
-.sidebar-bottom{margin-top:auto;padding:12px;border-top:1px solid var(--border)}
-.profile{display:flex;align-items:center;gap:10px}
-.avatar{
-  width:36px;height:36px;border-radius:50%;object-fit:cover;
-  background:var(--panel2);display:flex;align-items:center;justify-content:center;
-  overflow:hidden;font-weight:bold;
+
+.logo {
+  padding: 18px;
+  font-size: 20px;
+  font-weight: bold;
+  border-bottom: 1px solid var(--border);
 }
-.avatar img{width:100%;height:100%;object-fit:cover}
-.profile-info{min-width:0;flex:1}
-.profile-name{font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.status{font-size:11px;color:var(--muted)}
-.icon-btn{
-  border:0;background:transparent;color:var(--muted);padding:7px;border-radius:7px;
+
+.room-header {
+  padding: 12px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
 }
-.icon-btn:hover{background:var(--panel2);color:var(--text)}
-.main{display:flex;flex:1;min-width:0}
-.chat{display:flex;flex-direction:column;flex:1;min-width:0}
-.chat-header{
-  height:62px;border-bottom:1px solid var(--border);display:flex;
-  align-items:center;padding:0 18px;gap:12px;background:var(--panel);
+
+.room-header span {
+  color: var(--muted);
+  font-size: 12px;
+  text-transform: uppercase;
 }
-.chat-title{font-size:18px;font-weight:700}
-.chat-subtitle{font-size:12px;color:var(--muted)}
-.connection{margin-left:auto;font-size:12px;color:#65d48a}
-.connection.off{color:var(--danger)}
-.messages{
-  flex:1;overflow-y:auto;padding:20px;display:flex;flex-direction:column;gap:8px;
+
+.room-list {
+  overflow-y: auto;
+  padding: 0 8px 10px;
+  flex: 1;
 }
-.message{display:flex;gap:10px;max-width:850px}
-.message-avatar{width:34px;height:34px;flex-shrink:0}
-.message-content{min-width:0}
-.message-top{display:flex;align-items:center;gap:8px}
-.message-user{font-size:13px;font-weight:700}
-.message-time{font-size:10px;color:var(--muted)}
-.message-text{
-  background:var(--bubble);padding:9px 12px;border-radius:10px;
-  margin-top:3px;white-space:pre-wrap;overflow-wrap:anywhere;
+
+.room-button {
+  width: 100%;
+  border: 0;
+  background: transparent;
+  color: var(--muted);
+  padding: 10px 12px;
+  margin-bottom: 3px;
+  border-radius: 7px;
+  text-align: left;
 }
-.message-actions{display:none;margin-left:5px}
-.message:hover .message-actions{display:inline-flex}
-.message-actions button{
-  border:0;background:transparent;color:var(--muted);font-size:11px;padding:2px 4px;
+
+.room-button:hover {
+  background: var(--panel2);
+  color: var(--text);
 }
-.message-actions button:hover{color:var(--text)}
-.edited{font-size:10px;color:var(--muted);margin-left:5px}
-.pinned{
-  border-left:3px solid var(--accent);
+
+.room-button.active {
+  background: var(--panel2);
+  color: var(--text);
 }
-.composer{
-  padding:12px 16px 16px;border-top:1px solid var(--border);background:var(--panel);
+
+.sidebar-bottom {
+  padding: 10px;
+  border-top: 1px solid var(--border);
 }
-.composer-row{display:flex;gap:8px}
-.composer input{
-  flex:1;background:var(--input);border:1px solid var(--border);
-  color:var(--text);padding:12px;border-radius:9px;outline:none;
+
+.sidebar-bottom button {
+  width: 100%;
+  border: 0;
+  border-radius: 7px;
+  padding: 9px;
+  margin-top: 5px;
+  background: var(--panel2);
+  color: var(--text);
 }
-.composer input:focus{border-color:var(--accent)}
-.send{
-  border:0;background:var(--accent);color:white;border-radius:9px;padding:0 18px;
+
+/* =========================================================
+   MAIN
+   ========================================================= */
+
+.main {
+  min-width: 0;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
 }
-.members{
-  width:220px;background:var(--panel);border-left:1px solid var(--border);
-  padding:16px;overflow-y:auto;
+
+.topbar {
+  height: 60px;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 16px;
+  background: var(--panel);
+  flex-shrink: 0;
 }
-.members h3{font-size:12px;color:var(--muted);text-transform:uppercase;margin:4px 0 12px}
-.member{display:flex;align-items:center;gap:8px;padding:7px 0}
-.member-name{font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.online-dot{width:7px;height:7px;background:#65d48a;border-radius:50%;margin-left:auto}
-.unread{
-  background:var(--danger);color:white;border-radius:10px;
-  font-size:10px;padding:2px 6px;
+
+.room-title {
+  display: flex;
+  align-items: center;
+  gap: 10px;
 }
-.modal-backdrop{
-  position:fixed;inset:0;background:rgba(0,0,0,.65);display:none;
-  align-items:center;justify-content:center;z-index:20;padding:15px;
+
+.room-title strong {
+  font-size: 16px;
 }
-.modal{
-  width:min(430px,100%);background:var(--panel);border:1px solid var(--border);
-  border-radius:12px;padding:20px;
+
+.status {
+  font-size: 12px;
+  color: var(--muted);
 }
-.modal h2{margin:0 0 15px}
-.modal input{
-  width:100%;padding:11px;background:var(--input);border:1px solid var(--border);
-  color:var(--text);border-radius:8px;margin-bottom:10px;outline:none;
+
+.status.connected {
+  color: #43b581;
 }
-.modal-buttons{display:flex;justify-content:flex-end;gap:8px;margin-top:12px}
-.btn{
-  padding:9px 13px;border-radius:8px;border:1px solid var(--border);
-  background:var(--panel2);color:var(--text);
+
+.status.disconnected {
+  color: var(--danger);
 }
-.btn.primary{background:var(--accent);border-color:var(--accent);color:white}
-.btn.danger{background:var(--danger);border-color:var(--danger);color:white}
-.dev-panel{margin-top:12px;border-top:1px solid var(--border);padding-top:12px}
-.hidden{display:none!important}
-.emoji-row{display:flex;gap:5px;margin-bottom:8px;flex-wrap:wrap}
-.emoji-row button{
-  border:0;background:var(--panel2);border-radius:6px;padding:5px 7px;
+
+.top-actions {
+  display: flex;
+  gap: 6px;
 }
-.notice{
-  margin:10px auto;padding:9px 12px;border-radius:8px;
-  background:var(--panel2);color:var(--muted);font-size:12px;
+
+.top-actions button {
+  border: 0;
+  background: var(--panel2);
+  color: var(--text);
+  border-radius: 7px;
+  padding: 8px 10px;
 }
-@media(max-width:800px){
-  .sidebar{width:190px}
-  .members{display:none}
+
+/* =========================================================
+   CHAT
+   ========================================================= */
+
+.chat {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 18px;
 }
-@media(max-width:560px){
-  .sidebar{width:70px}
-  .brand{font-size:0;text-align:center}
-  .brand:after{content:"💬";font-size:22px}
-  .section-title{display:none}
-  .room{justify-content:center}
-  .room-name{font-size:0}
-  .room-name:before{content:"#";font-size:18px}
-  .room-code{display:none}
-  .add-room{font-size:0}
-  .add-room:before{content:"+";font-size:20px}
-  .profile-info,.sidebar-bottom .icon-btn{display:none}
-  .sidebar-bottom{padding:8px}
-  .profile{justify-content:center}
-  .messages{padding:12px}
-  .chat-header{padding:0 12px}
-  .composer{padding:8px}
+
+.message {
+  display: flex;
+  gap: 10px;
+  padding: 7px 4px;
+  border-radius: 7px;
+}
+
+.message:hover {
+  background: rgba(128,128,128,.08);
+}
+
+.avatar {
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  background: var(--panel2);
+  object-fit: cover;
+  flex-shrink: 0;
+}
+
+.avatar-placeholder {
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  background: var(--accent);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: bold;
+  flex-shrink: 0;
+}
+
+.message-content {
+  min-width: 0;
+  flex: 1;
+}
+
+.message-header {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+}
+
+.username {
+  font-weight: bold;
+}
+
+.timestamp {
+  color: var(--muted);
+  font-size: 11px;
+}
+
+.message-text {
+  white-space: pre-wrap;
+  word-break: break-word;
+  margin-top: 3px;
+}
+
+.edited {
+  color: var(--muted);
+  font-size: 10px;
+  margin-left: 4px;
+}
+
+.message-actions {
+  opacity: 0;
+  display: flex;
+  gap: 3px;
+}
+
+.message:hover .message-actions {
+  opacity: 1;
+}
+
+.message-actions button {
+  border: 0;
+  background: var(--panel2);
+  color: var(--muted);
+  border-radius: 5px;
+  padding: 3px 6px;
+  font-size: 11px;
+}
+
+.message-actions button:hover {
+  color: var(--text);
+}
+
+.pinned {
+  border-left: 3px solid var(--accent);
+  padding-left: 8px;
+}
+
+/* =========================================================
+   COMPOSER
+   ========================================================= */
+
+.composer-wrap {
+  padding: 10px 14px 14px;
+  border-top: 1px solid var(--border);
+  background: var(--panel);
+}
+
+.composer {
+  display: flex;
+  gap: 8px;
+  align-items: flex-end;
+}
+
+.composer textarea {
+  flex: 1;
+  resize: none;
+  min-height: 42px;
+  max-height: 140px;
+  padding: 11px 13px;
+  border: 1px solid var(--border);
+  border-radius: 9px;
+  background: var(--input);
+  color: var(--text);
+  outline: none;
+}
+
+.composer textarea:focus {
+  border-color: var(--accent);
+}
+
+.send-button {
+  border: 0;
+  border-radius: 9px;
+  background: var(--accent);
+  color: white;
+  padding: 11px 16px;
+  height: 42px;
+}
+
+.send-button:disabled {
+  opacity: .5;
+  cursor: not-allowed;
+}
+
+/* =========================================================
+   MEMBERS
+   ========================================================= */
+
+.members {
+  width: 210px;
+  background: var(--panel);
+  border-left: 1px solid var(--border);
+  flex-shrink: 0;
+  overflow-y: auto;
+}
+
+.members-title {
+  padding: 18px 14px 10px;
+  font-size: 12px;
+  color: var(--muted);
+  text-transform: uppercase;
+}
+
+.member {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 12px;
+}
+
+.member-avatar {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  object-fit: cover;
+  background: var(--panel2);
+}
+
+.member-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #43b581;
+}
+
+.member-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* =========================================================
+   MODALS
+   ========================================================= */
+
+.modal {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,.6);
+  display: none;
+  align-items: center;
+  justify-content: center;
+  z-index: 100;
+  padding: 20px;
+}
+
+.modal.show {
+  display: flex;
+}
+
+.modal-box {
+  width: min(430px, 100%);
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 20px;
+}
+
+.modal-box h2 {
+  margin-top: 0;
+}
+
+.modal-box input {
+  width: 100%;
+  margin-bottom: 10px;
+  padding: 10px;
+  border-radius: 7px;
+  border: 1px solid var(--border);
+  background: var(--input);
+  color: var(--text);
+}
+
+.modal-buttons {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.modal-buttons button {
+  border: 0;
+  padding: 9px 13px;
+  border-radius: 7px;
+  background: var(--panel2);
+  color: var(--text);
+}
+
+.modal-buttons .primary {
+  background: var(--accent);
+  color: white;
+}
+
+/* =========================================================
+   MOBILE
+   ========================================================= */
+
+.mobile-room-button {
+  display: none;
+}
+
+@media (max-width: 850px) {
+  .members {
+    display: none;
+  }
+
+  .sidebar {
+    width: 210px;
+  }
+}
+
+@media (max-width: 600px) {
+  .sidebar {
+    display: none;
+  }
+
+  .mobile-room-button {
+    display: block !important;
+  }
+
+  .topbar {
+    padding: 0 9px;
+  }
+
+  .chat {
+    padding: 10px;
+  }
+
+  .message-actions {
+    opacity: 1;
+  }
+
+  .composer-wrap {
+    padding: 7px;
+  }
+
+  .send-button {
+    padding: 10px 12px;
+  }
 }
 </style>
 </head>
+
 <body>
 
 <div class="app">
 
-  <aside class="sidebar">
-    <div class="brand">💬 Chatroom</div>
+  <!-- =======================================================
+       SIDEBAR
+       ======================================================= -->
 
-    <div class="sidebar-section">
-      <div class="section-title">Rooms</div>
-      <div id="rooms"></div>
-      <button class="add-room" onclick="openRoomModal()">＋ Create room</button>
+  <aside class="sidebar">
+
+    <div class="logo">
+      Chat Room
     </div>
+
+    <div class="room-header">
+      <span>Rooms</span>
+
+      <button
+        onclick="openCreateRoom()"
+        title="Create room"
+        style="
+          border:0;
+          background:var(--panel2);
+          color:var(--text);
+          border-radius:6px;
+          padding:5px 8px;
+        "
+      >
+        +
+      </button>
+    </div>
+
+    <div
+      id="roomList"
+      class="room-list"
+    ></div>
 
     <div class="sidebar-bottom">
-      <div class="profile">
-        <div class="avatar" id="myAvatar">?</div>
-        <div class="profile-info">
-          <div class="profile-name" id="myName">Guest</div>
-          <div class="status" id="myStatus">Disconnected</div>
-        </div>
-        <button class="icon-btn" onclick="openSettings()">⚙</button>
-      </div>
+
+      <button onclick="changeName()">
+        Change name
+      </button>
+
+      <button onclick="changeAvatar()">
+        Change avatar
+      </button>
+
+      <button onclick="toggleTheme()">
+        Toggle theme
+      </button>
+
+      <button onclick="openDevLogin()">
+        Developer
+      </button>
+
     </div>
+
   </aside>
 
-  <main class="main">
-    <section class="chat">
-      <header class="chat-header">
-        <div>
-          <div class="chat-title" id="roomTitle">General</div>
-          <div class="chat-subtitle" id="roomCodeLabel">#general</div>
-        </div>
-        <div class="connection off" id="connection">● Disconnected</div>
-      </header>
 
-      <div class="messages" id="messages"></div>
+  <!-- =======================================================
+       MAIN
+       ======================================================= -->
+
+  <main class="main">
+
+    <header class="topbar">
+
+      <div class="room-title">
+
+        <button
+          class="mobile-room-button"
+          onclick="toggleMobileRooms()"
+          style="
+            border:0;
+            background:var(--panel2);
+            color:var(--text);
+            border-radius:6px;
+            padding:6px 9px;
+          "
+        >
+          ☰
+        </button>
+
+        <strong id="roomTitle">
+          General
+        </strong>
+
+        <span
+          id="connectionStatus"
+          class="status disconnected"
+        >
+          Connecting...
+        </span>
+
+      </div>
+
+      <div class="top-actions">
+
+        <button onclick="copyRoomCode()">
+          Copy code
+        </button>
+
+      </div>
+
+    </header>
+
+
+    <section
+      id="chat"
+      class="chat"
+    ></section>
+
+
+    <div class="composer-wrap">
 
       <div class="composer">
-        <div class="emoji-row">
-          <button onclick="addEmoji('😀')">😀</button>
-          <button onclick="addEmoji('😂')">😂</button>
-          <button onclick="addEmoji('😭')">😭</button>
-          <button onclick="addEmoji('😐')">😐</button>
-          <button onclick="addEmoji('❤️')">❤️</button>
-          <button onclick="addEmoji('👍')">👍</button>
-          <button onclick="addEmoji('🔥')">🔥</button>
-          <button onclick="addEmoji('💀')">💀</button>
-        </div>
-        <div class="composer-row">
-          <input id="messageInput" placeholder="Type a message..." maxlength="2000"
-                 onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();sendMessage()}">
-          <button class="send" onclick="sendMessage()">Send</button>
-        </div>
+
+        <textarea
+          id="messageInput"
+          placeholder="Type a message..."
+          maxlength="2000"
+          rows="1"
+        ></textarea>
+
+        <button
+          id="sendButton"
+          class="send-button"
+          onclick="sendMessage()"
+          disabled
+        >
+          Send
+        </button>
+
       </div>
-    </section>
 
-    <aside class="members">
-      <h3>Online members</h3>
-      <div id="membersBar"></div>
-    </aside>
+    </div>
+
   </main>
+
+
+  <!-- =======================================================
+       MEMBERS
+       ======================================================= -->
+
+  <aside class="members">
+
+    <div class="members-title">
+      Online
+    </div>
+
+    <div id="memberList"></div>
+
+  </aside>
+
 </div>
 
-<div class="modal-backdrop" id="nameModal">
-  <div class="modal">
-    <h2>Welcome</h2>
-    <p style="color:var(--muted);font-size:13px">Choose a display name to enter the chat.</p>
-    <input id="nameInput" maxlength="24" placeholder="Display name">
-    <input id="avatarInput" placeholder="Avatar URL (optional)">
+
+<!-- =========================================================
+     CREATE ROOM MODAL
+     ========================================================= -->
+
+<div
+  id="createRoomModal"
+  class="modal"
+>
+
+  <div class="modal-box">
+
+    <h2>Create room</h2>
+
+    <input
+      id="newRoomName"
+      placeholder="Room name"
+      maxlength="40"
+    >
+
+    <input
+      id="newRoomCode"
+      placeholder="Room code"
+      maxlength="30"
+    >
+
     <div class="modal-buttons">
-      <button class="btn primary" onclick="saveProfile()">Enter chat</button>
+
+      <button
+        onclick="closeCreateRoom()"
+      >
+        Cancel
+      </button>
+
+      <button
+        class="primary"
+        onclick="confirmCreateRoom()"
+      >
+        Create
+      </button>
+
     </div>
+
   </div>
+
 </div>
 
-<div class="modal-backdrop" id="roomModal">
-  <div class="modal">
-    <h2>Create a room</h2>
-    <input id="roomNameInput" maxlength="40" placeholder="Room name">
-    <input id="roomCodeInput" maxlength="30" placeholder="Room code">
+
+<!-- =========================================================
+     NAME MODAL
+     ========================================================= -->
+
+<div
+  id="nameModal"
+  class="modal"
+>
+
+  <div class="modal-box">
+
+    <h2>Choose a name</h2>
+
+    <input
+      id="nameInput"
+      maxlength="24"
+      placeholder="Display name"
+    >
+
     <div class="modal-buttons">
-      <button class="btn" onclick="closeModal('roomModal')">Cancel</button>
-      <button class="btn primary" onclick="createRoom()">Create</button>
+
+      <button
+        class="primary"
+        onclick="saveName()"
+      >
+        Save
+      </button>
+
     </div>
+
   </div>
+
 </div>
 
-<div class="modal-backdrop" id="settingsModal">
-  <div class="modal">
-    <h2>Settings</h2>
-    <input id="settingsName" maxlength="24" placeholder="Display name">
-    <input id="settingsAvatar" placeholder="Avatar URL">
-    <button class="btn" onclick="toggleTheme()">Toggle dark/light theme</button>
-
-    <div class="dev-panel">
-      <strong>Developer</strong>
-      <p style="font-size:12px;color:var(--muted)">Developer tools are optional.</p>
-      <input id="devPass" type="password" placeholder="Developer passkey">
-      <button class="btn" onclick="devLogin()">Developer login</button>
-      <div id="devTools" class="hidden" style="margin-top:10px"></div>
-    </div>
-
-    <div class="modal-buttons">
-      <button class="btn" onclick="closeModal('settingsModal')">Close</button>
-      <button class="btn primary" onclick="saveSettings()">Save</button>
-    </div>
-  </div>
-</div>
 
 <script>
-let socket=null;
-let reconnectTimer=null;
-let rooms=[];
-let currentRoom="general";
-let username=localStorage.getItem("chat_username")||"";
-let avatar=localStorage.getItem("chat_avatar")||"";
-let messages=[];
-let members=[];
-let devToken=localStorage.getItem("chat_dev_token")||"";
 
-const $=id=>document.getElementById(id);
+/* ============================================================
+   STATE
+   ============================================================ */
 
-function escapeHtml(str){
-  return String(str).replace(/[&<>"']/g,c=>({
-    "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;"
-  }[c]));
+let socket = null;
+
+let reconnectTimer = null;
+
+let reconnectDelay = 1000;
+
+let intentionalDisconnect = false;
+
+let currentRoom = "general";
+
+let currentRoomName = "General";
+
+let rooms = [];
+
+let messages = [];
+
+let members = [];
+
+let username =
+  localStorage.getItem("chat_username") ||
+  "";
+
+let avatar =
+  localStorage.getItem("chat_avatar") ||
+  "";
+
+let theme =
+  localStorage.getItem("chat_theme") ||
+  "dark";
+
+let socketHasReceivedHistory = false;
+
+let currentlyConnecting = false;
+
+
+/* ============================================================
+   THEME
+   ============================================================ */
+
+if (theme === "light") {
+  document.body.classList.add("light");
 }
 
-function avatarHtml(name,url){
-  if(url){
-    return `<div class="avatar"><img src="${escapeHtml(url)}" onerror="this.parentElement.innerText='${escapeHtml((name||"?")[0].toUpperCase())}'"></div>`;
-  }
-  return `<div class="avatar">${escapeHtml((name||"?")[0].toUpperCase())}</div>`;
-}
 
-function setStatus(connected,text){
-  $("connection").textContent=connected?"● Connected":"● "+(text||"Disconnected");
-  $("connection").className="connection"+(connected?"":" off");
-  $("myStatus").textContent=connected?"Online":"Disconnected";
-}
+/* ============================================================
+   STARTUP
+   ============================================================ */
 
-function openModal(id){$(id).style.display="flex"}
-function closeModal(id){$(id).style.display="none"}
+document.addEventListener(
+  "DOMContentLoaded",
+  async () => {
 
-function init(){
-  if(!username){
-    $("nameModal").style.display="flex";
-  }else{
-    $("myName").textContent=username;
-    updateMyAvatar();
-    connect();
-  }
+    setupInput();
 
-  const theme=localStorage.getItem("chat_theme");
-  if(theme==="light") document.body.classList.add("light");
-
-  loadRooms();
-  setInterval(loadRooms,3000);
-}
-
-function saveProfile(){
-  const name=$("nameInput").value.trim();
-  if(!name)return alert("Enter a display name.");
-  username=name;
-  avatar=$("avatarInput").value.trim();
-  localStorage.setItem("chat_username",username);
-  localStorage.setItem("chat_avatar",avatar);
-  $("myName").textContent=username;
-  updateMyAvatar();
-  closeModal("nameModal");
-  connect();
-}
-
-function updateMyAvatar(){
-  $("myAvatar").innerHTML="";
-  if(avatar){
-    const img=document.createElement("img");
-    img.src=avatar;
-    img.onerror=()=>{$("myAvatar").textContent=(username||"?")[0].toUpperCase()};
-    $("myAvatar").appendChild(img);
-  }else{
-    $("myAvatar").textContent=(username||"?")[0].toUpperCase();
-  }
-}
-
-async function loadRooms(){
-  try{
-    const res=await fetch("/api/rooms",{cache:"no-store"});
-    if(!res.ok)return;
-    const data=await res.json();
-    if(Array.isArray(data.rooms)){
-      rooms=data.rooms;
-      renderRooms();
+    if (!username) {
+      document
+        .getElementById("nameModal")
+        .classList.add("show");
     }
-  }catch(e){}
-}
 
-function renderRooms(){
-  const box=$("rooms");
-  box.innerHTML="";
-  rooms.forEach(room=>{
-    const div=document.createElement("div");
-    div.className="room"+(room.code===currentRoom?" active":"");
-    div.onclick=()=>joinRoom(room.code);
-    div.innerHTML=`
-      <span class="room-name">${escapeHtml(room.name)}</span>
-      <span class="room-code">${escapeHtml(room.code)}</span>
-    `;
-    box.appendChild(div);
-  });
-}
-
-function joinRoom(code){
-  if(!code||code===currentRoom&&socket&&socket.readyState===WebSocket.OPEN)return;
-
-  currentRoom=code;
-  messages=[];
-  members=[];
-  renderMessages();
-  renderMembers();
-  renderRooms();
-
-  if(socket){
-    try{socket.close()}catch(e){}
-    socket=null;
-  }
-
-  connect();
-}
-
-function connect(){
-  if(!username)return;
-
-  clearTimeout(reconnectTimer);
-
-  setStatus(false,"Connecting...");
-
-  const protocol=location.protocol==="https:"?"wss:":"ws:";
-  const url=protocol+"//"+location.host+
-    "/api/ws?room="+encodeURIComponent(currentRoom)+
-    "&name="+encodeURIComponent(username)+
-    "&avatar="+encodeURIComponent(avatar);
-
-  try{
-    socket=new WebSocket(url);
-  }catch(e){
-    scheduleReconnect();
-    return;
-  }
-
-  socket.onopen=()=>{
-    setStatus(true);
-    loadRoomHistory();
-  };
-
-  socket.onmessage=(event)=>{
-    try{
-      const data=JSON.parse(event.data);
-
-      if(data.type==="history"){
-        messages=Array.isArray(data.messages)?data.messages:[];
-        renderMessages();
-      }
-
-      else if(data.type==="message"){
-        const msg=data.message||data;
-        if(msg && msg.id && !messages.some(m=>m.id===msg.id)){
-          messages.push(msg);
-          renderMessages();
-          scrollMessages();
-        }
-      }
-
-      else if(data.type==="members"){
-        members=Array.isArray(data.members)?data.members:[];
-        renderMembers();
-      }
-
-      else if(data.type==="message_edit"){
-        const i=messages.findIndex(m=>m.id===data.message.id);
-        if(i>=0)messages[i]=data.message;
-        renderMessages();
-      }
-
-      else if(data.type==="message_delete"){
-        messages=messages.filter(m=>m.id!==data.id);
-        renderMessages();
-      }
-
-      else if(data.type==="error"){
-        alert(data.message||"Something went wrong.");
-      }
-    }catch(e){
-      console.error("Bad server message:",e);
-    }
-  };
-
-  socket.onerror=(event)=>{
-    console.error("WebSocket error",event);
-    setStatus(false,"Chatroom is disconnected");
-  };
-
-  socket.onclose=(event)=>{
-    console.warn("WebSocket closed:",event.code,event.reason);
-    setStatus(false,"Chatroom is disconnected");
-    scheduleReconnect();
-  };
-}
-
-function scheduleReconnect(){
-  clearTimeout(reconnectTimer);
-  reconnectTimer=setTimeout(()=>{
-    if(username)connect();
-  },3000);
-}
-
-async function loadRoomHistory(){
-  try{
-    const res=await fetch("/api/history?room="+encodeURIComponent(currentRoom));
-    if(!res.ok)return;
-    const data=await res.json();
-    if(Array.isArray(data.messages)){
-      messages=data.messages;
-      renderMessages();
-    }
-  }catch(e){}
-}
-
-function sendMessage(){
-  const input=$("messageInput");
-  const text=input.value.trim();
-  if(!text)return;
-
-  if(!socket||socket.readyState!==WebSocket.OPEN){
-    alert("The chatroom is disconnected. Please wait a moment and try again.");
-    return;
-  }
-
-  socket.send(JSON.stringify({
-    action:"message",
-    text
-  }));
-
-  input.value="";
-  input.focus();
-}
-
-function renderMessages(){
-  const box=$("messages");
-  box.innerHTML="";
-
-  if(!messages.length){
-    box.innerHTML=`<div class="notice">No messages yet. Say something!</div>`;
-    return;
-  }
-
-  messages.forEach(msg=>{
-    const div=document.createElement("div");
-    div.className="message"+(msg.pinned?" pinned":"");
-
-    const mine=msg.username===username;
-
-    const time=msg.created_at
-      ?new Date(msg.created_at).toLocaleTimeString([],{
-        hour:"numeric",minute:"2-digit"
-      }):"";
-
-    div.innerHTML=`
-      ${avatarHtml(msg.username,msg.avatar)}
-      <div class="message-content">
-        <div class="message-top">
-          <span class="message-user">${escapeHtml(msg.username||"Unknown")}</span>
-          <span class="message-time">${escapeHtml(time)}</span>
-          ${msg.edited?'<span class="edited">(edited)</span>':""}
-          <span class="message-actions">
-            ${mine?`<button onclick="editMessage('${escapeHtml(msg.id)}')">edit</button>`:""}
-            ${mine?`<button onclick="deleteMessage('${escapeHtml(msg.id)}')">delete</button>`:""}
-            ${mine?`<button onclick="pinMessage('${escapeHtml(msg.id)}')">${msg.pinned?"unpin":"pin"}</button>`:""}
-          </span>
-        </div>
-        <div class="message-text">${escapeHtml(msg.text||"")}</div>
-      </div>
-    `;
-    box.appendChild(div);
-  });
-
-  scrollMessages();
-}
-
-function scrollMessages(){
-  const box=$("messages");
-  box.scrollTop=box.scrollHeight;
-}
-
-function renderMembers(){
-  const box=$("membersBar");
-  box.innerHTML="";
-
-  members.forEach(member=>{
-    const div=document.createElement("div");
-    div.className="member";
-    div.innerHTML=`
-      ${avatarHtml(member.username||member.name,member.avatar)}
-      <span class="member-name">${escapeHtml(member.username||member.name||"Guest")}</span>
-      <span class="online-dot"></span>
-    `;
-    box.appendChild(div);
-  });
-
-  if(!members.length){
-    box.innerHTML='<span style="color:var(--muted);font-size:12px">Nobody online</span>';
-  }
-}
-
-function editMessage(id){
-  const msg=messages.find(m=>m.id===id);
-  if(!msg)return;
-  const text=prompt("Edit message:",msg.text);
-  if(text===null||!text.trim())return;
-
-  if(socket?.readyState===WebSocket.OPEN){
-    socket.send(JSON.stringify({
-      action:"edit",
-      id,
-      text:text.trim()
-    }));
-  }
-}
-
-function deleteMessage(id){
-  if(!confirm("Delete this message?"))return;
-
-  if(socket?.readyState===WebSocket.OPEN){
-    socket.send(JSON.stringify({
-      action:"delete",
-      id
-    }));
-  }
-}
-
-function pinMessage(id){
-  if(socket?.readyState===WebSocket.OPEN){
-    socket.send(JSON.stringify({
-      action:"pin",
-      id
-    }));
-  }
-}
-
-function addEmoji(emoji){
-  const input=$("messageInput");
-  input.value+=emoji;
-  input.focus();
-}
-
-function openRoomModal(){
-  $("roomNameInput").value="";
-  $("roomCodeInput").value="";
-  openModal("roomModal");
-}
-
-async function createRoom(){
-  const name=$("roomNameInput").value.trim();
-  let code=$("roomCodeInput").value.trim().toLowerCase();
-
-  if(!name)return alert("Enter a room name.");
-
-  if(!code){
-    code=name.toLowerCase().replace(/[^a-z0-9]+/g,"-").replace(/^-|-$/g,"");
-  }
-
-  if(!/^[a-z0-9_-]{2,30}$/.test(code)){
-    return alert("Room code can only contain letters, numbers, _ and -.");
-  }
-
-  try{
-    const res=await fetch("/api/rooms",{
-      method:"POST",
-      headers:{"Content-Type":"application/json"},
-      body:JSON.stringify({name,code})
-    });
-
-    const data=await res.json();
-
-    if(!res.ok)return alert(data.error||"Could not create room.");
-
-    closeModal("roomModal");
     await loadRooms();
-    joinRoom(code);
-  }catch(e){
-    alert("Could not create room.");
+
+    connectToRoom(
+      currentRoom
+    );
   }
-}
+);
 
-function openSettings(){
-  $("settingsName").value=username;
-  $("settingsAvatar").value=avatar;
-  openModal("settingsModal");
-}
 
-function saveSettings(){
-  const newName=$("settingsName").value.trim();
-  const newAvatar=$("settingsAvatar").value.trim();
+/* ============================================================
+   INPUT
+   ============================================================ */
 
-  if(!newName)return alert("Display name cannot be empty.");
+function setupInput() {
 
-  username=newName;
-  avatar=newAvatar;
+  const input =
+    document.getElementById(
+      "messageInput"
+    );
 
-  localStorage.setItem("chat_username",username);
-  localStorage.setItem("chat_avatar",avatar);
+  input.addEventListener(
+    "keydown",
+    event => {
 
-  $("myName").textContent=username;
-  updateMyAvatar();
+      if (
+        event.key === "Enter" &&
+        !event.shiftKey
+      ) {
+        event.preventDefault();
 
-  closeModal("settingsModal");
+        sendMessage();
+      }
+    }
+  );
 
-  if(socket)try{socket.close()}catch(e){}
-  connect();
-}
+  input.addEventListener(
+    "input",
+    () => {
 
-function toggleTheme(){
-  document.body.classList.toggle("light");
-  localStorage.setItem(
-    "chat_theme",
-    document.body.classList.contains("light")?"light":"dark"
+      input.style.height =
+        "auto";
+
+      input.style.height =
+        Math.min(
+          input.scrollHeight,
+          140
+        ) + "px";
+    }
   );
 }
 
-async function devLogin(){
-  const pass=$("devPass").value;
 
-  if(!pass)return;
+/* ============================================================
+   ROOMS
+   ============================================================ */
 
-  try{
-    const res=await fetch("/api/dev/login",{
-      method:"POST",
-      headers:{"Content-Type":"application/json"},
-      body:JSON.stringify({passkey:pass})
-    });
+async function loadRooms() {
 
-    const data=await res.json();
+  try {
 
-    if(!res.ok)return alert(data.error||"Developer login failed.");
+    const response =
+      await fetch(
+        "/api/rooms",
+        {
+          cache: "no-store"
+        }
+      );
 
-    devToken=data.token;
-    localStorage.setItem("chat_dev_token",devToken);
-    await loadDevTools();
-  }catch(e){
-    alert("Developer login failed.");
+    if (!response.ok) {
+      throw new Error(
+        "Could not load rooms"
+      );
+    }
+
+    const data =
+      await response.json();
+
+    rooms =
+      Array.isArray(data.rooms)
+        ? data.rooms
+        : [];
+
+    if (!rooms.length) {
+      rooms = [
+        {
+          name: "General",
+          code: "general"
+        }
+      ];
+    }
+
+    const savedRoom =
+      localStorage.getItem(
+        "chat_room"
+      );
+
+    if (
+      savedRoom &&
+      rooms.some(
+        room =>
+          room.code ===
+          savedRoom
+      )
+    ) {
+      currentRoom =
+        savedRoom;
+    }
+
+    const room =
+      rooms.find(
+        room =>
+          room.code ===
+          currentRoom
+      );
+
+    if (room) {
+      currentRoomName =
+        room.name;
+    }
+
+    renderRooms();
+
+  } catch (error) {
+
+    console.error(
+      "Room loading error:",
+      error
+    );
+
+    rooms = [
+      {
+        name: "General",
+        code: "general"
+      }
+    ];
+
+    renderRooms();
   }
 }
 
-async function loadDevTools(){
-  if(!devToken)return;
 
-  try{
-    const res=await fetch("/api/dev/users",{
-      headers:{Authorization:"Bearer "+devToken}
-    });
+function renderRooms() {
 
-    if(!res.ok)return;
+  const list =
+    document.getElementById(
+      "roomList"
+    );
 
-    const data=await res.json();
-    const users=data.users||[];
+  list.innerHTML = "";
 
-    const box=$("devTools");
-    box.classList.remove("hidden");
+  for (const room of rooms) {
 
-    box.innerHTML=`
-      <div style="font-size:12px;color:var(--muted);margin-bottom:8px">
-        Online users: ${users.length}
-      </div>
-      ${users.map(u=>`
-        <div style="display:flex;gap:5px;align-items:center;margin-bottom:6px">
-          <span style="font-size:12px;flex:1">${escapeHtml(u.username)}</span>
-          <button class="btn" style="padding:4px 7px;font-size:11px"
-            onclick="devAction('kick',${JSON.stringify(u.username)})">Kick</button>
-          <button class="btn" style="padding:4px 7px;font-size:11px"
-            onclick="devAction('timeout',${JSON.stringify(u.username)})">Timeout</button>
-        </div>
-      `).join("")}
-    `;
-  }catch(e){}
+    const button =
+      document.createElement(
+        "button"
+      );
+
+    button.className =
+      "room-button" +
+      (
+        room.code === currentRoom
+          ? " active"
+          : ""
+      );
+
+    button.textContent =
+      "# " + room.name;
+
+    button.onclick =
+      () => {
+        joinRoom(
+          room.code,
+          room.name
+        );
+      };
+
+    list.appendChild(button);
+  }
 }
 
-async function devAction(action,target){
-  let seconds=0;
 
-  if(action==="timeout"){
-    seconds=parseInt(prompt("Timeout duration in seconds:", "60"),10);
-    if(!Number.isFinite(seconds)||seconds<1)return;
+/* ============================================================
+   JOIN ROOM
+   ============================================================ */
+
+function joinRoom(
+  code,
+  name
+) {
+
+  if (
+    code === currentRoom &&
+    socket &&
+    socket.readyState ===
+      WebSocket.OPEN
+  ) {
+    return;
   }
 
-  try{
-    const res=await fetch("/api/dev/action",{
-      method:"POST",
-      headers:{
-        "Content-Type":"application/json",
-        "Authorization":"Bearer "+devToken
+  currentRoom = code;
+
+  currentRoomName =
+    name || code;
+
+  localStorage.setItem(
+    "chat_room",
+    currentRoom
+  );
+
+  renderRooms();
+
+  connectToRoom(
+    currentRoom
+  );
+}
+
+
+/* ============================================================
+   WEBSOCKET CONNECTION
+   ============================================================ */
+
+function connectToRoom(
+  roomCode
+) {
+
+  if (!username) {
+    setStatus(
+      false,
+      "Choose a name"
+    );
+
+    return;
+  }
+
+  currentlyConnecting = true;
+
+  intentionalDisconnect = false;
+
+  clearTimeout(
+    reconnectTimer
+  );
+
+  // Close old connection.
+  if (socket) {
+
+    try {
+      socket.close();
+    } catch {}
+
+    socket = null;
+  }
+
+  socketHasReceivedHistory =
+    false;
+
+  messages = [];
+
+  members = [];
+
+  renderMessages();
+
+  renderMembers();
+
+  setStatus(
+    false,
+    "Connecting..."
+  );
+
+  const protocol =
+    location.protocol ===
+    "https:"
+      ? "wss:"
+      : "ws:";
+
+  const params =
+    new URLSearchParams();
+
+  params.set(
+    "room",
+    roomCode
+  );
+
+  params.set(
+    "name",
+    username
+  );
+
+  params.set(
+    "avatar",
+    avatar
+  );
+
+  const wsUrl =
+    protocol +
+    "//" +
+    location.host +
+    "/api/ws?" +
+    params.toString();
+
+  console.log(
+    "Connecting to room:",
+    roomCode
+  );
+
+  try {
+
+    socket =
+      new WebSocket(
+        wsUrl
+      );
+
+  } catch (error) {
+
+    console.error(
+      "WebSocket creation failed:",
+      error
+    );
+
+    currentlyConnecting = false;
+
+    scheduleReconnect();
+
+    return;
+  }
+
+
+  /* ----------------------------------------------------------
+     OPEN
+     ---------------------------------------------------------- */
+
+  socket.onopen = () => {
+
+    console.log(
+      "WebSocket connected:",
+      roomCode
+    );
+
+    currentlyConnecting = false;
+
+    reconnectDelay = 1000;
+
+    setStatus(
+      true,
+      "Connected"
+    );
+
+    document
+      .getElementById(
+        "sendButton"
+      )
+      .disabled = false;
+
+    /*
+     * IMPORTANT:
+     *
+     * DO NOT call loadRoomHistory() here.
+     *
+     * The Durable Object sends history through the WebSocket
+     * immediately after connection.
+     *
+     * Calling the HTTP history endpoint here could race with
+     * live messages and overwrite the current message list.
+     */
+  };
+
+
+  /* ----------------------------------------------------------
+     MESSAGE
+     ---------------------------------------------------------- */
+
+  socket.onmessage = event => {
+
+    let data;
+
+    try {
+
+      data =
+        JSON.parse(
+          event.data
+        );
+
+    } catch (error) {
+
+      console.error(
+        "Bad WebSocket data:",
+        event.data
+      );
+
+      return;
+    }
+
+    console.log(
+      "WebSocket event:",
+      data
+    );
+
+
+    // --------------------------------------------------------
+    // HISTORY
+    // --------------------------------------------------------
+
+    if (
+      data.type ===
+      "history"
+    ) {
+
+      socketHasReceivedHistory =
+        true;
+
+      const incoming =
+        Array.isArray(
+          data.messages
+        )
+          ? data.messages
+          : [];
+
+      /*
+       * Only replace the local list with history if this is
+       * the initial history event.
+       *
+       * This prevents a duplicate history response from
+       * destroying messages that arrived live.
+       */
+
+      messages =
+        normalizeMessages(
+          incoming
+        );
+
+      renderMessages();
+
+      return;
+    }
+
+
+    // --------------------------------------------------------
+    // NEW MESSAGE
+    // --------------------------------------------------------
+
+    if (
+      data.type ===
+      "message"
+    ) {
+
+      /*
+       * New Worker format:
+       *
+       * data.message
+       *
+       * Older format:
+       *
+       * data itself
+       *
+       * Support both.
+       */
+
+      const incoming =
+        data.message &&
+        typeof data.message ===
+          "object"
+          ? data.message
+          : data;
+
+      const message =
+        normalizeMessage(
+          incoming
+        );
+
+      if (!message) {
+        return;
+      }
+
+      /*
+       * Avoid duplicates.
+       */
+
+      const exists =
+        messages.some(
+          m =>
+            String(m.id) ===
+            String(message.id)
+        );
+
+      if (!exists) {
+
+        messages.push(
+          message
+        );
+
+        messages.sort(
+          (a, b) =>
+            Number(
+              a.created_at || 0
+            ) -
+            Number(
+              b.created_at || 0
+            )
+        );
+
+        renderMessages();
+
+        scrollToBottom();
+      }
+
+      return;
+    }
+
+
+    // --------------------------------------------------------
+    // EDIT
+    // --------------------------------------------------------
+
+    if (
+      data.type ===
+      "message_edit"
+    ) {
+
+      const incoming =
+        data.message &&
+        typeof data.message ===
+          "object"
+          ? data.message
+          : data;
+
+      const updated =
+        normalizeMessage(
+          incoming
+        );
+
+      if (!updated) {
+        return;
+      }
+
+      const index =
+        messages.findIndex(
+          m =>
+            String(m.id) ===
+            String(updated.id)
+        );
+
+      if (index !== -1) {
+
+        messages[index] =
+          updated;
+
+        renderMessages();
+      }
+
+      return;
+    }
+
+
+    // --------------------------------------------------------
+    // DELETE
+    // --------------------------------------------------------
+
+    if (
+      data.type ===
+      "message_delete"
+    ) {
+
+      const id =
+        data.id;
+
+      messages =
+        messages.filter(
+          m =>
+            String(m.id) !==
+            String(id)
+        );
+
+      renderMessages();
+
+      return;
+    }
+
+
+    // --------------------------------------------------------
+    // MEMBERS
+    // --------------------------------------------------------
+
+    if (
+      data.type ===
+      "members"
+    ) {
+
+      members =
+        Array.isArray(
+          data.members
+        )
+          ? data.members
+          : [];
+
+      renderMembers();
+
+      return;
+    }
+
+
+    // --------------------------------------------------------
+    // SERVER ERROR
+    // --------------------------------------------------------
+
+    if (
+      data.type ===
+      "error"
+    ) {
+
+      alert(
+        data.message ||
+        "Something went wrong."
+      );
+
+      return;
+    }
+  };
+
+
+  /* ----------------------------------------------------------
+     CLOSE
+     ---------------------------------------------------------- */
+
+  socket.onclose = event => {
+
+    console.log(
+      "WebSocket closed:",
+      event.code,
+      event.reason
+    );
+
+    currentlyConnecting = false;
+
+    document
+      .getElementById(
+        "sendButton"
+      )
+      .disabled = true;
+
+    if (
+      !intentionalDisconnect
+    ) {
+
+      setStatus(
+        false,
+        "Disconnected"
+      );
+
+      scheduleReconnect();
+    }
+  };
+
+
+  /* ----------------------------------------------------------
+     ERROR
+     ---------------------------------------------------------- */
+
+  socket.onerror = error => {
+
+    console.error(
+      "WebSocket error:",
+      error
+    );
+
+    setStatus(
+      false,
+      "Connection error"
+    );
+  };
+}
+
+
+/* ============================================================
+   RECONNECT
+   ============================================================ */
+
+function scheduleReconnect() {
+
+  clearTimeout(
+    reconnectTimer
+  );
+
+  reconnectTimer =
+    setTimeout(
+      () => {
+
+        if (
+          currentRoom
+        ) {
+
+          connectToRoom(
+            currentRoom
+          );
+        }
+
       },
-      body:JSON.stringify({
-        action,
-        target,
-        seconds
-      })
-    });
+      reconnectDelay
+    );
 
-    const data=await res.json();
+  reconnectDelay =
+    Math.min(
+      reconnectDelay * 2,
+      10000
+    );
+}
 
-    if(!res.ok)alert(data.error||"Action failed.");
-    else loadDevTools();
-  }catch(e){
-    alert("Action failed.");
+
+/* ============================================================
+   SEND MESSAGE
+   ============================================================ */
+
+function sendMessage() {
+
+  const input =
+    document.getElementById(
+      "messageInput"
+    );
+
+  const text =
+    input.value.trim();
+
+  if (!text) {
+    return;
+  }
+
+  if (
+    !socket ||
+    socket.readyState !==
+      WebSocket.OPEN
+  ) {
+
+    alert(
+      "Chat is still connecting. Please wait a moment."
+    );
+
+    return;
+  }
+
+  socket.send(
+    JSON.stringify({
+      action: "message",
+      text
+    })
+  );
+
+  input.value = "";
+
+  input.style.height =
+    "auto";
+}
+
+
+/* ============================================================
+   NORMALIZE MESSAGE
+   ============================================================ */
+
+function normalizeMessage(
+  message
+) {
+
+  if (
+    !message ||
+    typeof message !==
+      "object"
+  ) {
+    return null;
+  }
+
+  const text =
+    message.text ??
+    message.message ??
+    message.content ??
+    "";
+
+  return {
+    id:
+      String(
+        message.id ??
+        crypto.randomUUID()
+      ),
+
+    username:
+      String(
+        message.username ??
+        message.name ??
+        "Guest"
+      ),
+
+    avatar:
+      String(
+        message.avatar ??
+        ""
+      ),
+
+    text:
+      String(text),
+
+    created_at:
+      Number(
+        message.created_at ??
+        message.timestamp ??
+        Date.now()
+      ),
+
+    edited:
+      Boolean(
+        message.edited
+      ),
+
+    pinned:
+      Boolean(
+        message.pinned
+      )
+  };
+}
+
+
+function normalizeMessages(
+  list
+) {
+
+  return list
+    .map(
+      normalizeMessage
+    )
+    .filter(
+      Boolean
+    );
+}
+
+
+/* ============================================================
+   RENDER MESSAGES
+   ============================================================ */
+
+function renderMessages() {
+
+  const chat =
+    document.getElementById(
+      "chat"
+    );
+
+  chat.innerHTML = "";
+
+  for (
+    const message of messages
+  ) {
+
+    const wrapper =
+      document.createElement(
+        "div"
+      );
+
+    wrapper.className =
+      "message" +
+      (
+        message.pinned
+          ? " pinned"
+          : ""
+      );
+
+    // Avatar.
+    if (message.avatar) {
+
+      const img =
+        document.createElement(
+          "img"
+        );
+
+      img.className =
+        "avatar";
+
+      img.src =
+        message.avatar;
+
+      img.onerror =
+        () => {
+          img.replaceWith(
+            createAvatarPlaceholder(
+              message.username
+            )
+          );
+        };
+
+      wrapper.appendChild(
+        img
+      );
+
+    } else {
+
+      wrapper.appendChild(
+        createAvatarPlaceholder(
+          message.username
+        )
+      );
+    }
+
+
+    const content =
+      document.createElement(
+        "div"
+      );
+
+    content.className =
+      "message-content";
+
+
+    // Header.
+    const header =
+      document.createElement(
+        "div"
+      );
+
+    header.className =
+      "message-header";
+
+
+    const usernameEl =
+      document.createElement(
+        "span"
+      );
+
+    usernameEl.className =
+      "username";
+
+    usernameEl.textContent =
+      message.username;
+
+
+    const time =
+      document.createElement(
+        "span"
+      );
+
+    time.className =
+      "timestamp";
+
+    time.textContent =
+      formatTime(
+        message.created_at
+      );
+
+
+    header.appendChild(
+      usernameEl
+    );
+
+    header.appendChild(
+      time
+    );
+
+
+    // Edited label.
+    if (message.edited) {
+
+      const edited =
+        document.createElement(
+          "span"
+        );
+
+      edited.className =
+        "edited";
+
+      edited.textContent =
+        "(edited)";
+
+      header.appendChild(
+        edited
+      );
+    }
+
+
+    // Actions.
+    const actions =
+      document.createElement(
+        "div"
+      );
+
+    actions.className =
+      "message-actions";
+
+    actions.style.marginLeft =
+      "auto";
+
+
+    // Edit.
+    if (
+      message.username ===
+      username
+    ) {
+
+      const editButton =
+        document.createElement(
+          "button"
+        );
+
+      editButton.textContent =
+        "Edit";
+
+      editButton.onclick =
+        () =>
+          editMessage(
+            message.id,
+            message.text
+          );
+
+      actions.appendChild(
+        editButton
+      );
+
+
+      // Delete.
+      const deleteButton =
+        document.createElement(
+          "button"
+        );
+
+      deleteButton.textContent =
+        "Delete";
+
+      deleteButton.onclick =
+        () =>
+          deleteMessage(
+            message.id
+          );
+
+      actions.appendChild(
+        deleteButton
+      );
+
+
+      // Pin.
+      const pinButton =
+        document.createElement(
+          "button"
+        );
+
+      pinButton.textContent =
+        message.pinned
+          ? "Unpin"
+          : "Pin";
+
+      pinButton.onclick =
+        () =>
+          pinMessage(
+            message.id
+          );
+
+      actions.appendChild(
+        pinButton
+      );
+    }
+
+
+    header.appendChild(
+      actions
+    );
+
+
+    // Message text.
+    const text =
+      document.createElement(
+        "div"
+      );
+
+    text.className =
+      "message-text";
+
+    text.textContent =
+      message.text;
+
+
+    content.appendChild(
+      header
+    );
+
+    content.appendChild(
+      text
+    );
+
+    wrapper.appendChild(
+      content
+    );
+
+    chat.appendChild(
+      wrapper
+    );
+  }
+
+  scrollToBottom();
+}
+
+
+/* ============================================================
+   AVATAR PLACEHOLDER
+   ============================================================ */
+
+function createAvatarPlaceholder(
+  name
+) {
+
+  const el =
+    document.createElement(
+      "div"
+    );
+
+  el.className =
+    "avatar-placeholder";
+
+  el.textContent =
+    String(name || "G")
+      .charAt(0)
+      .toUpperCase();
+
+  return el;
+}
+
+
+/* ============================================================
+   TIME
+   ============================================================ */
+
+function formatTime(
+  timestamp
+) {
+
+  const date =
+    new Date(
+      Number(timestamp)
+    );
+
+  if (
+    Number.isNaN(
+      date.getTime()
+    )
+  ) {
+    return "";
+  }
+
+  return date.toLocaleTimeString(
+    [],
+    {
+      hour: "numeric",
+      minute: "2-digit"
+    }
+  );
+}
+
+
+/* ============================================================
+   SCROLL
+   ============================================================ */
+
+function scrollToBottom() {
+
+  const chat =
+    document.getElementById(
+      "chat"
+    );
+
+  requestAnimationFrame(
+    () => {
+      chat.scrollTop =
+        chat.scrollHeight;
+    }
+  );
+}
+
+
+/* ============================================================
+   MEMBERS
+   ============================================================ */
+
+function renderMembers() {
+
+  const list =
+    document.getElementById(
+      "memberList"
+    );
+
+  list.innerHTML = "";
+
+  for (
+    const member of members
+  ) {
+
+    const row =
+      document.createElement(
+        "div"
+      );
+
+    row.className =
+      "member";
+
+
+    const dot =
+      document.createElement(
+        "span"
+      );
+
+    dot.className =
+      "member-dot";
+
+
+    const name =
+      document.createElement(
+        "span"
+      );
+
+    name.className =
+      "member-name";
+
+    name.textContent =
+      member.username ||
+      "Guest";
+
+
+    row.appendChild(
+      dot
+    );
+
+    name.style.flex = "1";
+
+    row.appendChild(
+      name
+    );
+
+    list.appendChild(
+      row
+    );
   }
 }
 
-init();
+
+/* ============================================================
+   STATUS
+   ============================================================ */
+
+function setStatus(
+  connected,
+  text
+) {
+
+  const el =
+    document.getElementById(
+      "connectionStatus"
+    );
+
+  el.textContent =
+    text ||
+    (
+      connected
+        ? "Connected"
+        : "Disconnected"
+    );
+
+  el.className =
+    "status " +
+    (
+      connected
+        ? "connected"
+        : "disconnected"
+    );
+}
+
+
+/* ============================================================
+   CREATE ROOM
+   ============================================================ */
+
+function openCreateRoom() {
+
+  document
+    .getElementById(
+      "createRoomModal"
+    )
+    .classList.add(
+      "show"
+    );
+}
+
+
+function closeCreateRoom() {
+
+  document
+    .getElementById(
+      "createRoomModal"
+    )
+    .classList.remove(
+      "show"
+    );
+}
+
+
+async function confirmCreateRoom() {
+
+  const name =
+    document
+      .getElementById(
+        "newRoomName"
+      )
+      .value
+      .trim();
+
+  const code =
+    document
+      .getElementById(
+        "newRoomCode"
+      )
+      .value
+      .trim()
+      .toLowerCase();
+
+  if (!name || !code) {
+
+    alert(
+      "Enter a room name and room code."
+    );
+
+    return;
+  }
+
+  try {
+
+    const response =
+      await fetch(
+        "/api/rooms",
+        {
+          method: "POST",
+
+          headers: {
+            "Content-Type":
+              "application/json"
+          },
+
+          body:
+            JSON.stringify({
+              name,
+              code
+            })
+        }
+      );
+
+    const data =
+      await response.json();
+
+    if (!response.ok) {
+
+      alert(
+        data.error ||
+        "Could not create room."
+      );
+
+      return;
+    }
+
+    closeCreateRoom();
+
+    document
+      .getElementById(
+        "newRoomName"
+      )
+      .value = "";
+
+    document
+      .getElementById(
+        "newRoomCode"
+      )
+      .value = "";
+
+    await loadRooms();
+
+    joinRoom(
+      data.room.code,
+      data.room.name
+    );
+
+  } catch (error) {
+
+    console.error(
+      error
+    );
+
+    alert(
+      "Could not create room."
+    );
+  }
+}
+
+
+/* ============================================================
+   CHANGE NAME
+   ============================================================ */
+
+function changeName() {
+
+  const value =
+    prompt(
+      "Enter your display name:",
+      username
+    );
+
+  if (
+    value === null
+  ) {
+    return;
+  }
+
+  const cleaned =
+    value
+      .replace(/[<>]/g, "")
+      .trim()
+      .slice(0, 24);
+
+  if (!cleaned) {
+    return;
+  }
+
+  username =
+    cleaned;
+
+  localStorage.setItem(
+    "chat_username",
+    username
+  );
+
+  reconnectCurrentRoom();
+}
+
+
+/* ============================================================
+   INITIAL NAME
+   ============================================================ */
+
+function saveName() {
+
+  const value =
+    document
+      .getElementById(
+        "nameInput"
+      )
+      .value
+      .replace(/[<>]/g, "")
+      .trim()
+      .slice(0, 24);
+
+  if (!value) {
+    return;
+  }
+
+  username =
+    value;
+
+  localStorage.setItem(
+    "chat_username",
+    username
+  );
+
+  document
+    .getElementById(
+      "nameModal"
+    )
+    .classList.remove(
+      "show"
+    );
+
+  connectToRoom(
+    currentRoom
+  );
+}
+
+
+/* ============================================================
+   CHANGE AVATAR
+   ============================================================ */
+
+function changeAvatar() {
+
+  const value =
+    prompt(
+      "Enter an image URL:",
+      avatar
+    );
+
+  if (
+    value === null
+  ) {
+    return;
+  }
+
+  const cleaned =
+    value.trim();
+
+  if (
+    cleaned &&
+    !(
+      cleaned.startsWith(
+        "https://"
+      ) ||
+      cleaned.startsWith(
+        "http://"
+      )
+    )
+  ) {
+
+    alert(
+      "Avatar must be an http:// or https:// image URL."
+    );
+
+    return;
+  }
+
+  avatar =
+    cleaned.slice(
+      0,
+      500
+    );
+
+  localStorage.setItem(
+    "chat_avatar",
+    avatar
+  );
+
+  reconnectCurrentRoom();
+}
+
+
+/* ============================================================
+   RECONNECT CURRENT ROOM
+   ============================================================ */
+
+function reconnectCurrentRoom() {
+
+  if (socket) {
+
+    intentionalDisconnect =
+      true;
+
+    try {
+      socket.close();
+    } catch {}
+
+    socket = null;
+  }
+
+  setTimeout(
+    () => {
+      connectToRoom(
+        currentRoom
+      );
+    },
+    100
+  );
+}
+
+
+/* ============================================================
+   EDIT
+   ============================================================ */
+
+function editMessage(
+  id,
+  oldText
+) {
+
+  const newText =
+    prompt(
+      "Edit message:",
+      oldText
+    );
+
+  if (
+    newText === null
+  ) {
+    return;
+  }
+
+  const text =
+    newText.trim();
+
+  if (!text) {
+    return;
+  }
+
+  if (
+    !socket ||
+    socket.readyState !==
+      WebSocket.OPEN
+  ) {
+    return;
+  }
+
+  socket.send(
+    JSON.stringify({
+      action: "edit",
+      id,
+      text
+    })
+  );
+}
+
+
+/* ============================================================
+   DELETE
+   ============================================================ */
+
+function deleteMessage(
+  id
+) {
+
+  if (
+    !confirm(
+      "Delete this message?"
+    )
+  ) {
+    return;
+  }
+
+  if (
+    !socket ||
+    socket.readyState !==
+      WebSocket.OPEN
+  ) {
+    return;
+  }
+
+  socket.send(
+    JSON.stringify({
+      action: "delete",
+      id
+    })
+  );
+}
+
+
+/* ============================================================
+   PIN
+   ============================================================ */
+
+function pinMessage(
+  id
+) {
+
+  if (
+    !socket ||
+    socket.readyState !==
+      WebSocket.OPEN
+  ) {
+    return;
+  }
+
+  socket.send(
+    JSON.stringify({
+      action: "pin",
+      id
+    })
+  );
+}
+
+
+/* ============================================================
+   THEME
+   ============================================================ */
+
+function toggleTheme() {
+
+  document.body.classList.toggle(
+    "light"
+  );
+
+  const light =
+    document.body.classList.contains(
+      "light"
+    );
+
+  theme =
+    light
+      ? "light"
+      : "dark";
+
+  localStorage.setItem(
+    "chat_theme",
+    theme
+  );
+}
+
+
+/* ============================================================
+   COPY ROOM CODE
+   ============================================================ */
+
+async function copyRoomCode() {
+
+  try {
+
+    await navigator.clipboard.writeText(
+      currentRoom
+    );
+
+    alert(
+      "Room code copied: " +
+      currentRoom
+    );
+
+  } catch {
+
+    prompt(
+      "Copy this room code:",
+      currentRoom
+    );
+  }
+}
+
+
+/* ============================================================
+   MOBILE ROOMS
+   ============================================================ */
+
+function toggleMobileRooms() {
+
+  const sidebar =
+    document.querySelector(
+      ".sidebar"
+    );
+
+  if (
+    window.innerWidth <= 600
+  ) {
+
+    const visible =
+      sidebar.style.display !==
+      "none";
+
+    sidebar.style.display =
+      visible
+        ? "none"
+        : "flex";
+  }
+}
+
+
+/* ============================================================
+   DEV LOGIN
+   ============================================================ */
+
+async function openDevLogin() {
+
+  const passkey =
+    prompt(
+      "Developer passkey:"
+    );
+
+  if (
+    passkey === null
+  ) {
+    return;
+  }
+
+  try {
+
+    const response =
+      await fetch(
+        "/api/dev/login",
+        {
+          method: "POST",
+
+          headers: {
+            "Content-Type":
+              "application/json"
+          },
+
+          body:
+            JSON.stringify({
+              passkey
+            })
+        }
+      );
+
+    const data =
+      await response.json();
+
+    if (!response.ok) {
+
+      alert(
+        data.error ||
+        "Invalid passkey."
+      );
+
+      return;
+    }
+
+    localStorage.setItem(
+      "dev_token",
+      data.token
+    );
+
+    alert(
+      "Developer login successful."
+    );
+
+  } catch {
+
+    alert(
+      "Developer login failed."
+    );
+  }
+}
+
+
+/* ============================================================
+   ROOM LIST REFRESH
+   ============================================================ */
+
+/*
+ * Refresh the room list periodically so rooms created by
+ * another browser/device eventually appear.
+ *
+ * This does NOT reconnect the current WebSocket.
+ */
+
+setInterval(
+  async () => {
+
+    try {
+
+      const oldCurrentRoom =
+        currentRoom;
+
+      await loadRooms();
+
+      /*
+       * If the current room still exists, don't reconnect.
+       */
+
+      if (
+        currentRoom ===
+        oldCurrentRoom
+      ) {
+        return;
+      }
+
+    } catch {}
+  },
+  5000
+);
+
+
+/* ============================================================
+   PAGE VISIBILITY
+   ============================================================ */
+
+document.addEventListener(
+  "visibilitychange",
+  () => {
+
+    if (
+      !document.hidden &&
+      currentRoom &&
+      (
+        !socket ||
+        socket.readyState !==
+          WebSocket.OPEN
+      )
+    ) {
+
+      connectToRoom(
+        currentRoom
+      );
+    }
+  }
+);
+
 </script>
+
 </body>
 </html>
