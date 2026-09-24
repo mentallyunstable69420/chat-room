@@ -45,7 +45,7 @@ button,input,select,textarea{font:inherit}button{cursor:pointer}
 .message-avatar{width:40px;height:40px;flex-shrink:0}
 .message-content{min-width:0}
 .message-top{display:flex;align-items:baseline;gap:8px;margin-bottom:3px}
-.message-user{font-weight:bold}
+.message-user{font-weight:bold}.dev-tag{display:inline-flex;align-items:center;padding:2px 5px;border-radius:4px;background:var(--accent);color:#fff;font-size:9px;font-weight:bold;line-height:1;text-transform:uppercase;letter-spacing:.3px}
 .dev-tag{display:inline-flex;align-items:center;padding:2px 5px;border-radius:4px;background:var(--accent);color:#fff;font-size:9px;font-weight:bold;line-height:1;text-transform:uppercase;letter-spacing:.3px}
 .message-time{font-size:11px;color:var(--muted)}
 .message-text{word-wrap:break-word;white-space:pre-wrap;line-height:1.45}
@@ -373,6 +373,9 @@ function editMessage(id){
 }
 function deleteMessage(id){if(confirm("Delete this message?"))sendWS({action:"delete",id})}
 function pinMessage(id){sendWS({action:"pin",id})}
+async function devEditMessage(id){if(!devUnlocked)return;const m=messages.find(x=>String(x.id)===String(id));if(!m)return;const text=prompt("Developer edit message:",m.text);if(text===null)return;await devAction("dev-edit",{id,text})}
+async function devBlankMessage(id){if(!devUnlocked)return;if(confirm("Blank this message?"))await devAction("dev-edit",{id,text:""})}
+async function devDeleteMessage(id){if(!devUnlocked)return;if(confirm("Delete this message for everyone?"))await devAction("dev-delete",{id})}
 async function devEditMessage(id){
   if(!devUnlocked)return;
   const m=messages.find(x=>String(x.id)===String(id));if(!m)return;
