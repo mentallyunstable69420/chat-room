@@ -348,9 +348,18 @@ function scrollBottom(){requestAnimationFrame(()=>messagesElement.scrollTop=mess
 function sendMessage(){
   const text=messageInput.value.trim();
   if(!text)return;
-  if(!socket||socket.readyState!==WebSocket.OPEN){alert("Not connected to the chat yet.");return}
-  socket.send(JSON.stringify({action:"message",text}));
-  messageInput.value="";messageInput.focus();
+  if(socket&&socket.readyState===WebSocket.OPEN){
+    socket.send(JSON.stringify({action:"message",text}));
+    messageInput.value="";messageInput.focus();
+    return;
+  }
+  try{
+    const res=await fetch("/api/send?room="+encodeURIComponent(currentRoom),{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({username,avatar,text})});
+    const data=await res.json().catch(()=>({}));
+    if(!res.ok||data.error)throw new Error(data.error||"Send failed");
+    messageInput.value="";messageInput.focus();
+    await fetchRoomHistoryFallback();
+  }catch(e){alert("Chat is still connecting. Please try again in a moment.");}
 }
 messageInput.addEventListener("keydown",e=>{if(e.key==="Enter"&&!e.shiftKey){e.preventDefault();sendMessage()}});
 
