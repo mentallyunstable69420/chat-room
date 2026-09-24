@@ -347,7 +347,7 @@ function renderMessages(){
     const image=getAvatar(msg.username,msg.avatar);
     const time=new Date(msg.created_at).toLocaleTimeString([],{hour:"numeric",minute:"2-digit"});
     const mine=msg.username===username;
-    const isDevMessage=!!(msg.is_dev||msg.is_dev_generated);
+    const isDevMessage=!!(msg.is_dev||msg.is_dev_generated)||(devUnlocked&&mine);
     return `<div class="message" data-id="${escapeAttribute(msg.id)}">
       <img class="message-avatar" src="${escapeAttribute(image)}" onerror="this.src='https://ui-avatars.com/api/?name=User'" alt="">
       <div class="message-content">
@@ -375,7 +375,7 @@ function deleteMessage(id){if(confirm("Delete this message?"))sendWS({action:"de
 function pinMessage(id){sendWS({action:"pin",id})}
 async function devEditMessage(id){if(!devUnlocked)return;const m=messages.find(x=>String(x.id)===String(id));if(!m)return;const text=prompt("Developer edit message:",m.text);if(text===null)return;await devAction("dev-edit",{id,text})}
 async function devBlankMessage(id){if(!devUnlocked)return;if(confirm("Blank this message?"))await devAction("dev-edit",{id,text:""})}
-async function devDeleteMessage(id){if(!devUnlocked)return;if(confirm("Delete this message for everyone?"))await devAction("dev-delete",{id})}
+async function devDeleteMessage(id){if(!devUnlocked)return;if(confirm("Delete this message for everyone?"))sendWS({action:"delete",id})}
 async function devEditMessage(id){
   if(!devUnlocked)return;
   const m=messages.find(x=>String(x.id)===String(id));if(!m)return;
