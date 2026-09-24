@@ -239,6 +239,7 @@ let unread={};
 let reconnectTimer=null;
 let devToken=localStorage.getItem("chat_dev_token")||"";
 let devUnlocked=!!devToken;
+if(devUnlocked)document.body.classList.add("dev-on");
 
 const messagesElement=document.getElementById("messages");
 const roomsElement=document.getElementById("rooms");
@@ -277,7 +278,8 @@ function login(){
   updateProfile(); document.getElementById("loginModal").classList.add("hidden"); connect();
 }
 function updateProfile(){
-  document.getElementById("profileName").textContent=username||"Guest";
+  const nameEl=document.getElementById("profileName");
+  nameEl.innerHTML=escapeHTML(username||"Guest")+(devUnlocked?' <span class="dev-tag">DEV</span>':"");
   document.getElementById("profileAvatar").src=getAvatar(username||"Guest",avatar);
 }
 function loadSavedUser(){
@@ -440,7 +442,7 @@ async function devLogin(){
     const data=await res.json();
     if(!res.ok){err.textContent=data.error||"Invalid passkey.";return}
     devToken=data.token;devUnlocked=true;localStorage.setItem("chat_dev_token",devToken);
-    document.body.classList.add("dev-on");closeDevLogin();connect();openDevMenu();
+    document.body.classList.add("dev-on");updateProfile();closeDevLogin();connect();openDevMenu();
   }catch(e){err.textContent="Could not contact the server."}
 }
 function closeDevMenu(){document.getElementById("devModal").classList.add("hidden")}
