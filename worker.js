@@ -662,7 +662,8 @@ export class ChatRoom extends DurableObject {
             text,
             created_at,
             edited,
-            pinned
+            pinned,
+            is_dev_generated
           FROM messages
           ORDER BY created_at ASC
           LIMIT 500
