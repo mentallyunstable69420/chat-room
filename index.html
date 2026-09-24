@@ -46,6 +46,7 @@ button,input,select,textarea{font:inherit}button{cursor:pointer}
 .message-content{min-width:0}
 .message-top{display:flex;align-items:baseline;gap:8px;margin-bottom:3px}
 .message-user{font-weight:bold}
+.dev-tag{display:inline-flex;align-items:center;padding:2px 5px;border-radius:4px;background:var(--accent);color:#fff;font-size:9px;font-weight:bold;line-height:1;text-transform:uppercase;letter-spacing:.3px}
 .message-time{font-size:11px;color:var(--muted)}
 .message-text{word-wrap:break-word;white-space:pre-wrap;line-height:1.45}
 .message-actions{display:flex;gap:5px;margin-top:6px}
@@ -325,7 +326,7 @@ function connect(){
   socket.onerror=()=>setStatus(false,"Connection error");
 }
 function normalizeMessage(m){
-  return {id:String(m.id),username:String(m.username||"Guest"),avatar:String(m.avatar||""),text:String(m.text??m.message??""),created_at:Number(m.created_at||Date.now()),edited:!!m.edited,pinned:!!m.pinned};
+  return {id:String(m.id),username:String(m.username||"Guest"),avatar:String(m.avatar||""),text:String(m.text??m.message??""),created_at:Number(m.created_at||Date.now()),edited:!!m.edited,pinned:!!m.pinned,is_dev:!!m.is_dev,is_dev_generated:!!m.is_dev_generated};
 }
 function setStatus(online,text){statusText.textContent=text;statusDot.classList.toggle("offline",!online)}
 function scrollBottom(){requestAnimationFrame(()=>messagesElement.scrollTop=messagesElement.scrollHeight)}
@@ -346,15 +347,20 @@ function renderMessages(){
     const image=getAvatar(msg.username,msg.avatar);
     const time=new Date(msg.created_at).toLocaleTimeString([],{hour:"numeric",minute:"2-digit"});
     const mine=msg.username===username;
+    const isDevMessage=!!(msg.is_dev||msg.is_dev_generated);
     return `<div class="message" data-id="${escapeAttribute(msg.id)}">
       <img class="message-avatar" src="${escapeAttribute(image)}" onerror="this.src='https://ui-avatars.com/api/?name=User'" alt="">
       <div class="message-content">
-        <div class="message-top"><span class="message-user">${escapeHTML(msg.username)}</span><span class="message-time">${time}</span>${msg.pinned?'<span>📌</span>':""}${msg.edited?'<span class="message-time">(edited)</span>':""}</div>
+        <div class="message-top"><span class="message-user">${escapeHTML(msg.username)}</span>${isDevMessage?'<span class="dev-tag">DEV</span>':""}<span class="message-time">${time}</span>${msg.pinned?'<span>📌</span>':""}${msg.edited?'<span class="message-time">(edited)</span>':""}</div>
         <div class="message-text">${escapeHTML(msg.text)}</div>
         ${mine?`<div class="message-actions">
           <button onclick="editMessage('${escapeAttribute(msg.id)}')">Edit</button>
           <button onclick="deleteMessage('${escapeAttribute(msg.id)}')">Delete</button>
-          <button onclick="pinMessage('${escapeAttribute(msg.id)}')">${msg.pinned?"Unpin":"Pin"}</button>
+          <button onclick="pinMessage('${escapeAttribute(msg.id)})">${msg.pinned?"Unpin":"Pin"}</button>
+        </div>`:""}${devUnlocked?`<div class="message-actions">
+          <button onclick="devEditMessage('${escapeAttribute(msg.id)}')">Dev Edit</button>
+          <button onclick="devBlankMessage('${escapeAttribute(msg.id)}')">Blank</button>
+          <button onclick="devDeleteMessage('${escapeAttribute(msg.id)}')">Dev Delete</button>
         </div>`:""}
       </div>
     </div>`;
@@ -367,6 +373,20 @@ function editMessage(id){
 }
 function deleteMessage(id){if(confirm("Delete this message?"))sendWS({action:"delete",id})}
 function pinMessage(id){sendWS({action:"pin",id})}
+async function devEditMessage(id){
+  if(!devUnlocked)return;
+  const m=messages.find(x=>String(x.id)===String(id));if(!m)return;
+  const text=prompt("Developer edit message:",m.text);if(text===null)return;
+  await devAction("dev-edit",{id,text});
+}
+async function devBlankMessage(id){
+  if(!devUnlocked)return;
+  if(confirm("Blank this message? The message will remain, but its text will be empty."))await devAction("dev-edit",{id,text:""});
+}
+async function devDeleteMessage(id){
+  if(!devUnlocked)return;
+  if(confirm("Permanently delete this message for everyone?"))await devAction("dev-delete",{id});
+}
 function sendWS(data){if(socket&&socket.readyState===WebSocket.OPEN)socket.send(JSON.stringify(data))}
 
 function renderMembers(){
