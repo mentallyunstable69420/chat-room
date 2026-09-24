@@ -356,7 +356,7 @@ function renderMessages(){
         ${mine?`<div class="message-actions">
           <button onclick="editMessage('${escapeAttribute(msg.id)}')">Edit</button>
           <button onclick="deleteMessage('${escapeAttribute(msg.id)}')">Delete</button>
-          <button onclick="pinMessage('${escapeAttribute(msg.id)})">${msg.pinned?"Unpin":"Pin"}</button>
+          <button onclick="pinMessage('${escapeAttribute(msg.id)}')">${msg.pinned?"Unpin":"Pin"}</button>
         </div>`:""}${devUnlocked?`<div class="message-actions">
           <button onclick="devEditMessage('${escapeAttribute(msg.id)}')">Dev Edit</button>
           <button onclick="devBlankMessage('${escapeAttribute(msg.id)}')">Blank</button>
@@ -373,22 +373,19 @@ function editMessage(id){
 }
 function deleteMessage(id){if(confirm("Delete this message?"))sendWS({action:"delete",id})}
 function pinMessage(id){sendWS({action:"pin",id})}
-async function devEditMessage(id){if(!devUnlocked)return;const m=messages.find(x=>String(x.id)===String(id));if(!m)return;const text=prompt("Developer edit message:",m.text);if(text===null)return;await devAction("dev-edit",{id,text})}
-async function devBlankMessage(id){if(!devUnlocked)return;if(confirm("Blank this message?"))await devAction("dev-edit",{id,text:""})}
-async function devDeleteMessage(id){if(!devUnlocked)return;if(confirm("Delete this message for everyone?"))sendWS({action:"delete",id})}
 async function devEditMessage(id){
   if(!devUnlocked)return;
   const m=messages.find(x=>String(x.id)===String(id));if(!m)return;
   const text=prompt("Developer edit message:",m.text);if(text===null)return;
-  await devAction("dev-edit",{id,text});
+  sendWS({action:"edit",id,text});
 }
 async function devBlankMessage(id){
   if(!devUnlocked)return;
-  if(confirm("Blank this message? The message will remain, but its text will be empty."))await devAction("dev-edit",{id,text:""});
+  if(confirm("Blank this message? The message will remain, but its text will be empty."))sendWS({action:"edit",id,text:""});
 }
 async function devDeleteMessage(id){
   if(!devUnlocked)return;
-  if(confirm("Permanently delete this message for everyone?"))await devAction("dev-delete",{id});
+  if(confirm("Delete this message for everyone?"))sendWS({action:"delete",id});
 }
 function sendWS(data){if(socket&&socket.readyState===WebSocket.OPEN)socket.send(JSON.stringify(data))}
 
