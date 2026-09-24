@@ -144,22 +144,6 @@ export default {
     }
 
     // HISTORY
-    if (
-      url.pathname === "/api/send" &&
-      request.method === "POST"
-    ) {
-      let body;
-      try { body = await request.json(); } catch { return json({error:"Invalid request."},400); }
-      const session = {
-        username: cleanName(body.username) || "Guest",
-        avatar: cleanAvatar(body.avatar),
-        isDev: false,
-        lastMessageAt: 0
-      };
-      await this.sendMessage(session, body.text);
-      return json({ success: true });
-    }
-
     if (url.pathname === "/api/history") {
       const roomCode =
         cleanRoomCode(url.searchParams.get("room")) || "general";
@@ -428,6 +412,22 @@ export class ChatRoom extends DurableObject {
         },
         500
       );
+    }
+
+    if (
+      url.pathname === "/api/send" &&
+      request.method === "POST"
+    ) {
+      let body;
+      try { body = await request.json(); } catch { return json({error:"Invalid request."},400); }
+      const session = {
+        username: cleanName(body.username) || "Guest",
+        avatar: cleanAvatar(body.avatar),
+        isDev: false,
+        lastMessageAt: 0
+      };
+      await this.sendMessage(session, body.text);
+      return json({ success: true });
     }
 
     if (url.pathname === "/api/history") {
