@@ -114,6 +114,7 @@ button,input,select,textarea{font:inherit}button{cursor:pointer}
   <div class="rooms" id="rooms" title="offline"></div>
   <div class="sidebar-bottom" title="static">
     <button class="sidebar-button" onclick="createRoom()">＋ New Room</button>
+    <button class="sidebar-button" onclick="openProfileModal()">👤 Edit Profile</button>
     <button class="sidebar-button" onclick="openCodesModal()">🔐 Codes</button>
     <button class="sidebar-button" onclick="toggleTheme()">🌓 Theme</button>
     <button class="sidebar-button dev-button" onclick="openDevMenu()">🛠 Developer</button>
@@ -154,6 +155,21 @@ button,input,select,textarea{font:inherit}button{cursor:pointer}
     <input id="nameInput" placeholder="Display name" maxlength="30">
     <input id="avatarInput" placeholder="Avatar URL (optional)">
     <button onclick="login()" style="width:100%">Enter Chat</button>
+  </div>
+</div>
+
+<div class="modal-background hidden" id="profileModal">
+  <div class="modal">
+    <h2>👤 Edit your profile</h2>
+    <p style="color:var(--muted)">Change your display name or profile picture whenever you want.</p>
+    <input id="profileNameInput" placeholder="Display name" maxlength="24">
+    <input id="profileAvatarInput" placeholder="Profile picture URL (optional)" maxlength="500">
+    <p style="color:var(--muted);font-size:12px;margin-top:-4px">Use an image URL beginning with https:// or http://. Leave it blank for an automatic avatar.</p>
+    <div class="modal-grid">
+      <button onclick="saveProfile()">Save Changes</button>
+      <button class="secondary" onclick="closeProfileModal()">Cancel</button>
+    </div>
+    <p id="profileSaveError" style="color:var(--danger);margin-bottom:0"></p>
   </div>
 </div>
 
@@ -306,6 +322,36 @@ function updateProfile(){
   const nameEl=document.getElementById("profileName");
   nameEl.innerHTML=escapeHTML(username||"Guest")+(devUnlocked?' <span class="dev-tag">DEV</span>':"");
   document.getElementById("profileAvatar").src=getAvatar(username||"Guest",avatar);
+}
+function openProfileModal(){
+  document.getElementById("profileNameInput").value=username;
+  document.getElementById("profileAvatarInput").value=avatar;
+  document.getElementById("profileSaveError").textContent="";
+  document.getElementById("profileModal").classList.remove("hidden");
+  document.getElementById("profileNameInput").focus();
+}
+function closeProfileModal(){
+  document.getElementById("profileModal").classList.add("hidden");
+}
+function saveProfile(){
+  const name=document.getElementById("profileNameInput").value.trim();
+  const avatarUrl=document.getElementById("profileAvatarInput").value.trim();
+  const error=document.getElementById("profileSaveError");
+  if(!name){error.textContent="Please enter a display name.";return}
+  if(avatarUrl&&!(avatarUrl.startsWith("https://")||avatarUrl.startsWith("http://"))){error.textContent="Profile picture URL must start with http:// or https://.";return}
+  const nextName=name.slice(0,24);
+  const nextAvatar=avatarUrl.slice(0,500);
+  const changed=nextName!==username||nextAvatar!==avatar;
+  username=nextName;
+  avatar=nextAvatar;
+  localStorage.setItem("chat_username",username);
+  localStorage.setItem("chat_avatar",avatar);
+  updateProfile();
+  closeProfileModal();
+  if(changed){
+    connect();
+    showAnnouncement("Your profile was updated. New messages will use your new name and picture.");
+  }
 }
 function loadSavedUser(){
   username=localStorage.getItem("chat_username")||"";
