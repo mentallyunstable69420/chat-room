@@ -84,6 +84,10 @@ button,input,select,textarea{font:inherit}button{cursor:pointer}
 .modal-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
 .modal-grid button{width:100%}
 .hidden{display:none!important}
+/* Secret codes: keep the clue chips and revealed messages on the same dark surfaces as the chat. */
+#codesModal .code-hunt{background:var(--sidebar)!important;color:var(--text)}
+#codesModal .code-hunt span:not(.code-hunt-label){background:var(--panel2);border-color:var(--border);color:var(--text)}
+#secretCodeResult{background:var(--sidebar)!important;color:var(--text);border:1px solid var(--border)}
 .dev-button{display:block!important}
 .dev-on .dev-button{display:block!important}
 .dev-panel{width:min(650px,calc(100% - 24px))}
