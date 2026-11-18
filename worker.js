@@ -1,6 +1,6 @@
 import { DurableObject } from "cloudflare:workers";
 
-const DEV_PASSKEY = "password";
+const DEV_PASSKEY = "poop";
 
 export default {
   async fetch(request, env) {
