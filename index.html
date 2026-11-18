@@ -280,6 +280,7 @@ let unread={};
 let reconnectTimer=null;
 let devToken=localStorage.getItem("chat_dev_token")||"";
 let devUnlocked=!!devToken;
+let sessionDevAccess=false;
 if(devUnlocked)document.body.classList.add("dev-on");
 
 const messagesElement=document.getElementById("messages");
@@ -390,6 +391,25 @@ function connect(){
       }
       if(data.type==="message_delete"||data.type==="delete"){messages=messages.filter(m=>m.id!==data.id);renderMessages();return}
       if(data.type==="members"){members=data.members||[];renderMembers();return}
+      if(data.type==="dev_permission"){
+        if(data.granted){
+          sessionDevAccess=true;
+          devToken=btoa(JSON.stringify({kind:"session-dev",sessionId:data.sessionId,token:data.token}));
+          devUnlocked=true;
+          document.body.classList.add("dev-on");
+          updateProfile();
+          showAnnouncement("Developer permissions granted for this session.");
+        }else if(sessionDevAccess){
+          sessionDevAccess=false;
+          devToken="";
+          devUnlocked=false;
+          document.body.classList.remove("dev-on");
+          updateProfile();
+          closeDevMenu();
+          showAnnouncement("Developer permissions removed.");
+        }
+        return;
+      }
       if(data.type==="room_state"){return}
       if(data.type==="effect"){runEffect(data.effect);return}
       if(data.type==="announcement"){showAnnouncement(data.text);return}
@@ -613,9 +633,15 @@ async function refreshDevUsers(){
     const res=await fetch(API_BASE+"/api/dev/users?room="+encodeURIComponent(currentRoom),{headers:{"Authorization":"Bearer "+devToken}});
     const data=await res.json();
     if(!res.ok){box.textContent=data.error||"Could not load users.";return}
-    if(!data.users?.length){box.textContent="Nobody else is connected."}
-    else box.innerHTML=data.users.map(u=>`<div class="user-row"><span>${escapeHTML(u.username)}</span><div class="user-actions"><button onclick="devUserAction('kick','${escapeAttribute(u.username)}')">Kick</button><button onclick="devUserAction('timeout','${escapeAttribute(u.username)}')">Timeout</button></div></div>`).join("");
+    if(!data.users?.length){box.textContent="Nobody is connected."}
+    else box.innerHTML=data.users.map(u=>`<div class="user-row"><span>${escapeHTML(u.username)} ${u.isDev?"<strong>· DEV</strong>":""}</span><div class="user-actions"><button onclick="devUserAction('kick','${escapeAttribute(u.username)}')">Kick</button><button onclick="devUserAction('timeout','${escapeAttribute(u.username)}')">Timeout</button><button onclick="devPermissionAction('${u.isDev?"revoke-dev":"grant-dev"}','${escapeAttribute(u.sessionId)}')">${u.isDev?"Remove DEV":"Grant DEV"}</button></div></div>`).join("");
   }catch(e){box.textContent="Could not load users."}
+}
+async function devPermissionAction(action,targetSessionId){
+  const permissionPasskey=prompt("Enter the developer-permissions passkey:");
+  if(permissionPasskey===null)return;
+  const result=await devAction(action,{targetSessionId,permissionPasskey});
+  if(result?.success){showAnnouncement(action==="grant-dev"?"DEV access granted for this session.":"DEV access removed.");refreshDevUsers()}
 }
 async function devUserAction(action,target){await devAction(action,{target,seconds:60});refreshDevUsers()}
 async function devEffect(effect){await devAction("effect",{effect})}
