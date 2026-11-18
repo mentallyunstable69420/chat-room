@@ -412,7 +412,7 @@ function connect(){
   socket.onmessage=event=>{
     try{
       const data=JSON.parse(event.data);
-      if(data.type==="history"){window.chatSessionId=data.sessionId||"";messages=data.messages||[];renderMessages();return}
+      if(data.type==="history"){if(data.sessionId)window.chatSessionId=data.sessionId;messages=data.messages||[];renderMessages();return}
       if(data.type==="message"){
         const m=data.message||data;
         if(m&&!messages.some(x=>x.id===m.id))messages.push(normalizeMessage(m));
@@ -725,8 +725,13 @@ async function devLogin(){
 function closeDevMenu(){document.getElementById("devModal").classList.add("hidden")}
 async function devAction(action,extra={}){
   if(!devToken){alert("Developer access is locked.");return null}
-  const res=await fetch(API_BASE+"/api/dev/action",{method:"POST",headers:{"Content-Type":"application/json","Authorization":"Bearer "+devToken},body:JSON.stringify({action,room:currentRoom,...extra})});
-  const data=await res.json();if(!res.ok)alert(data.error||"Developer action failed.");return data;
+  try{
+    const res=await fetch(API_BASE+"/api/dev/action",{method:"POST",headers:{"Content-Type":"application/json","Authorization":"Bearer "+devToken},body:JSON.stringify({action,room:currentRoom,...extra})});
+    const data=await res.json();
+    if(!res.ok){alert(data.error||"Developer action failed.");return null}
+    if(data.success===false){alert(data.error||"Developer action failed.");return null}
+    return data;
+  }catch(error){alert("Could not contact the developer server. Check that the Worker has deployed.");return null}
 }
 async function devSendMessage(){
   const u=document.getElementById("devMessageUsername").value.trim()||"Guest";
@@ -747,8 +752,8 @@ async function devChaosRoom(){
   const name=prompt("Chaos room name:","CHAOS");
   if(!name)return;
   const code=("chaos-"+Math.random().toString(36).slice(2,8)).toLowerCase();
-  const res=await fetch(API_BASE+"/api/dev/action",{method:"POST",headers:{"Content-Type":"application/json","Authorization":"Bearer "+devToken},body:JSON.stringify({action:"create-room",name,code})});
-  const data=await res.json();if(!res.ok){alert(data.error||"Could not create room.");return}
+  const data=await devAction("create-room",{name,code});
+  if(!data?.success)return;
   await loadRooms();joinRoom(code);
 }
 async function devDeleteCurrentRoom(){
