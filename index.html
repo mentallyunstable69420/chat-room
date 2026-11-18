@@ -100,19 +100,19 @@ button,input,select,textarea{font:inherit}button{cursor:pointer}
 /* DEV CONTROL ROOM */.dev-toolbar{display:flex;gap:8px;flex-wrap:wrap;margin:8px 0}.dev-toolbar input{flex:1;min-width:180px!important;margin:0!important}.dev-feature-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:7px;max-height:55vh;overflow:auto;padding:2px}.dev-feature-grid button{min-height:42px;background:var(--panel2);border:1px solid var(--border);font-size:11px;text-align:left}.dev-feature-grid button:hover{border-color:var(--accent);transform:translateY(-1px)}.dev-feature-count{font-size:11px;color:var(--muted);margin-top:8px}.dev-customizer{display:grid;grid-template-columns:1fr 1fr;gap:8px}.dev-customizer label{font-size:11px;color:var(--muted)}.dev-customizer input,.dev-customizer select{margin-top:4px!important;margin-bottom:0!important}.dev-on .message.dev-highlight{outline:2px solid var(--accent);outline-offset:3px}@media(max-width:700px){.dev-feature-grid{grid-template-columns:1fr 1fr}.dev-customizer{grid-template-columns:1fr}}</style>
 </head>
 <body>
-<div class="maintenance-notice" role="status">No more updates are coming for now. I’m not doing well at the moment, so I can’t work on the project. Thank you for understanding.</div>
+<div class="maintenance-notice" role="status" title="goodbye">No more updates are coming for now. I’m not doing well at the moment, so I can’t work on the project. Thank you for understanding.</div>
 <div class="app">
 <aside class="sidebar" id="sidebar">
-  <div class="sidebar-header">💬 Chat Room</div>
-  <div class="profile">
+  <div class="sidebar-header" title="still here">💬 Chat Room</div>
+  <div class="profile" title="remember me">
     <img id="profileAvatar" class="avatar" src="" alt="">
     <div>
       <div id="profileName" class="profile-name">Guest</div>
       <small style="color:var(--muted)">Online</small>
     </div>
   </div>
-  <div class="rooms" id="rooms"></div>
-  <div class="sidebar-bottom">
+  <div class="rooms" id="rooms" title="offline"></div>
+  <div class="sidebar-bottom" title="static">
     <button class="sidebar-button" onclick="createRoom()">＋ New Room</button>
     <button class="sidebar-button" onclick="openCodesModal()">🔐 Codes</button>
     <button class="sidebar-button" onclick="toggleTheme()">🌓 Theme</button>
@@ -123,15 +123,15 @@ button,input,select,textarea{font:inherit}button{cursor:pointer}
 <main class="main">
 <header class="chat-header">
   <button class="menu-button" onclick="toggleSidebar()">☰</button>
-  <div class="chat-title" id="chatTitle"># General</div>
-  <div class="members-bar" id="membersBar"></div>
-  <div class="connection-status">
+  <div class="chat-title" id="chatTitle" title="empty room"># General</div>
+  <div class="members-bar" id="membersBar" title="behind the screen"></div>
+  <div class="connection-status" title="old messages">
     <span id="statusDot" class="status-dot"></span>
     <span id="statusText">Connecting...</span>
   </div>
 </header>
-<div class="messages" id="messages"></div>
-<div class="input-area">
+<div class="messages" id="messages" title="3am"></div>
+<div class="input-area" title="nobody knows">
   <div class="input-row">
     <input id="messageInput" class="message-input" placeholder="Message #general" autocomplete="off">
     <button class="send-button" onclick="sendMessage()">Send</button>
@@ -453,7 +453,33 @@ async function openDevMenu(){
 function closeDevLogin(){document.getElementById("devLoginModal").classList.add("hidden")}
 function openCodesModal(){document.getElementById("codesModal").classList.remove("hidden");document.getElementById("secretCodeInput").value="";document.getElementById("secretCodeResult").classList.add("hidden");document.getElementById("secretCodeError").textContent="";document.getElementById("secretCodeInput").focus()}
 function closeCodesModal(){document.getElementById("codesModal").classList.add("hidden")}
-function submitSecretCode(){const input=document.getElementById("secretCodeInput");const result=document.getElementById("secretCodeResult");const error=document.getElementById("secretCodeError");if(input.value.trim().toLowerCase()==="are you ok"){result.textContent=Array(12).fill("i hate myself").join("\n");result.classList.remove("hidden");error.textContent=""}else{result.classList.add("hidden");error.textContent="That code doesn't work."}}
+function submitSecretCode(){
+  const input=document.getElementById("secretCodeInput");
+  const result=document.getElementById("secretCodeResult");
+  const error=document.getElementById("secretCodeError");
+  const code=input.value.trim().toLowerCase().replace(/\s+/g," ");
+  const secrets={
+    "are you ok":Array(12).fill("i hate myself").join("\n"),
+    "still here":"somehow, I am still here.",
+    "remember me":"I wonder if anyone remembers the old me.",
+    "offline":"I disappear more than people realize.",
+    "empty room":"It is quiet, but my mind is not.",
+    "behind the screen":"You only know what I let you see.",
+    "old messages":"Some conversations never leave your head.",
+    "3am":"The nights always feel longer.",
+    "nobody knows":"There is more to the story than anyone knows.",
+    "static":"Sometimes everything just feels like noise.",
+    "goodbye":"Not every ending gets explained."
+  };
+  if(Object.prototype.hasOwnProperty.call(secrets,code)){
+    result.textContent=secrets[code];
+    result.classList.remove("hidden");
+    error.textContent="";
+  }else{
+    result.classList.add("hidden");
+    error.textContent="That code does not work.";
+  }
+}
 async function devLogin(){
   const pass=document.getElementById("devPasskeyInput").value;
   const err=document.getElementById("devLoginError");err.textContent="";
