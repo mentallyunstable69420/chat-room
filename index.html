@@ -123,6 +123,7 @@ button,input,select,textarea{font:inherit}button{cursor:pointer}
   </div>
   <div class="rooms" id="rooms" title="offline"></div>
   <div class="sidebar-bottom" title="static">
+    <button class="sidebar-button" onclick="openPeopleModal()">💬 People / Private Chat</button>
     <button class="sidebar-button" onclick="createRoom()">＋ New Room</button>
     <button class="sidebar-button" onclick="openProfileModal()">👤 Edit Profile</button>
     <button class="sidebar-button" onclick="openCodesModal()">🔐 Codes</button>
@@ -168,6 +169,8 @@ button,input,select,textarea{font:inherit}button{cursor:pointer}
   </div>
 </div>
 
+<div class="modal-background hidden" id="peopleModal"><div class="modal"><h2>💬 People online</h2><p style="color:var(--muted)">Choose someone in this room to start a private conversation.</p><div class="user-list" id="peopleList">Loading...</div><button class="secondary" onclick="closePeopleModal()" style="width:100%;margin-top:10px">Close</button></div></div>
+<div class="modal-background hidden" id="dmModal"><div class="modal" style="display:flex;flex-direction:column;max-height:85vh"><h2 id="dmTitle">Private conversation</h2><p style="color:var(--muted);font-size:12px">Messages are delivered live while both people are online in this room. This site does not have user accounts.</p><div id="dmMessages" style="flex:1;min-height:180px;max-height:45vh;overflow:auto;background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:10px;margin-bottom:10px"></div><div class="input-row"><input id="dmInput" class="message-input" placeholder="Write a private message..." maxlength="2000"><button class="send-button" onclick="sendDirectMessage()">Send</button></div><button class="secondary" onclick="closeDM()" style="width:100%;margin-top:10px">Close</button></div></div>
 <div class="modal-background hidden" id="profileModal">
   <div class="modal">
     <h2>👤 Edit your profile</h2>
@@ -285,6 +288,8 @@ const API_BASE="https://chat-room.bentley-vest.workers.dev";
 let socket=null;
 let messages=[];
 let members=[];
+let activeDM=null;
+let dmHistory={};
 let rooms=[{name:"General",code:"general"}];
 let unread={};
 let activeRoomCounts={};
@@ -414,7 +419,8 @@ function connect(){
         renderMessages();return;
       }
       if(data.type==="message_delete"||data.type==="delete"){messages=messages.filter(m=>m.id!==data.id);renderMessages();return}
-      if(data.type==="members"){members=data.members||[];renderMembers();return}
+      if(data.type==="members"){members=data.members||[];renderMembers();if(!document.getElementById("peopleModal").classList.contains("hidden"))renderPeople();return}
+      if(data.type==="dm_message"){receiveDirectMessage(data);return}
       if(data.type==="dev_permission"){
         if(data.granted){
           sessionDevAccess=true;
@@ -520,6 +526,68 @@ function sendWS(data){if(socket&&socket.readyState===WebSocket.OPEN)socket.send(
 function renderMembers(){
   membersBar.innerHTML=members.slice(0,8).map(m=>`<img class="member-avatar" title="${escapeAttribute(m.username)}" src="${escapeAttribute(getAvatar(m.username,m.avatar))}" alt="">`).join("");
 }
+
+function openPeopleModal(){renderPeople();document.getElementById("peopleModal").classList.remove("hidden")}
+function closePeopleModal(){document.getElementById("peopleModal").classList.add("hidden")}
+function renderPeople(){
+  const list=document.getElementById("peopleList");
+  list.innerHTML="";
+  const others=members.filter(m=>m.sessionId&&m.sessionId!==window.chatSessionId);
+  if(!others.length){list.textContent="Nobody else is online in this room right now.";return}
+  others.forEach(m=>{
+    const row=document.createElement("div");row.className="user-row";
+    const label=document.createElement("span");
+    const img=document.createElement("img");img.src=getAvatar(m.username,m.avatar);img.alt="";img.style.cssText="width:28px;height:28px;border-radius:50%;vertical-align:middle;margin-right:7px";
+    label.append(img,document.createTextNode(m.username||"Guest"));
+    const button=document.createElement("button");button.textContent="Message";
+    button.addEventListener("click",()=>openDM(m.sessionId,m.username,m.avatar));
+    row.append(label,button);list.append(row);
+  });
+}
+function openDM(sessionId,name,peerAvatar){
+  if(!sessionId||sessionId===window.chatSessionId)return;
+  activeDM={sessionId,name,avatar:peerAvatar||""};
+  closePeopleModal();
+  document.getElementById("dmTitle").textContent="🔒 "+name;
+  document.getElementById("dmModal").classList.remove("hidden");
+  renderDM();document.getElementById("dmInput").focus();
+}
+function closeDM(){document.getElementById("dmModal").classList.add("hidden");activeDM=null}
+function dmStorageKey(peerId){return "afterhours_dm_"+peerId}
+function getDMHistory(peerId){
+  if(dmHistory[peerId])return dmHistory[peerId];
+  try{const saved=JSON.parse(localStorage.getItem(dmStorageKey(peerId))||"[]");dmHistory[peerId]=Array.isArray(saved)?saved:[]}
+  catch{dmHistory[peerId]=[]}
+  return dmHistory[peerId];
+}
+function saveDMHistory(peerId,items){
+  dmHistory[peerId]=items.slice(-200);
+  try{localStorage.setItem(dmStorageKey(peerId),JSON.stringify(dmHistory[peerId]))}catch{}
+}
+function renderDM(){
+  if(!activeDM)return;
+  const box=document.getElementById("dmMessages"),items=getDMHistory(activeDM.sessionId);
+  if(!items.length){box.textContent="This is the beginning of your private conversation.";return}
+  box.innerHTML=items.map(m=>'<div style="margin-bottom:10px"><strong>'+escapeHTML(m.fromName||"Guest")+(m.mine?" (you)":"")+'</strong><div style="white-space:pre-wrap;overflow-wrap:anywhere">'+escapeHTML(m.text)+'</div><small style="color:var(--muted)">'+new Date(m.time).toLocaleTimeString([],{hour:"numeric",minute:"2-digit"})+'</small></div>').join("");
+  box.scrollTop=box.scrollHeight;
+}
+function sendDirectMessage(){
+  const input=document.getElementById("dmInput"),text=input.value.trim();
+  if(!activeDM||!text)return;
+  if(!socket||socket.readyState!==WebSocket.OPEN){alert("Reconnect to the room before sending a private message.");return}
+  socket.send(JSON.stringify({action:"dm",targetSessionId:activeDM.sessionId,text}));
+  input.value="";input.focus();
+}
+function receiveDirectMessage(data){
+  const peerId=data.fromSessionId===window.chatSessionId?data.toSessionId:data.fromSessionId;
+  const item={fromName:data.fromUsername||"Guest",text:String(data.text||""),time:Number(data.createdAt||Date.now()),mine:data.fromSessionId===window.chatSessionId};
+  if(!peerId)return;
+  const items=getDMHistory(peerId);items.push(item);saveDMHistory(peerId,items);
+  if(activeDM&&activeDM.sessionId===peerId)renderDM();
+  else if(!item.mine)showAnnouncement("New private message from "+item.fromName+". Open People / Private Chat to reply.");
+}
+document.getElementById("dmInput").addEventListener("keydown",e=>{if(e.key==="Enter"&&!e.shiftKey){e.preventDefault();sendDirectMessage()}});
+
 function renderRooms(){
   roomsElement.innerHTML=rooms.map(r=>{
     const count=Number(activeRoomCounts[r.code]||0);
