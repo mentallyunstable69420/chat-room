@@ -290,9 +290,10 @@ const statusText=document.getElementById("statusText");
 const statusDot=document.getElementById("statusDot");
 const membersBar=document.getElementById("membersBar");
 
+const DEFAULT_AVATAR="data:image/svg+xml,"+encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><rect width="100" height="100" rx="50" fill="#5865f2"/><circle cx="50" cy="36" r="18" fill="#ffffff"/><path d="M16 88c3-19 16-29 34-29s31 10 34 29" fill="#ffffff"/></svg>');
 function getAvatar(name,custom){
   if(custom&&custom.trim()) return custom;
-  return "https://ui-avatars.com/api/?name="+encodeURIComponent(name)+"&background=5865f2&color=fff";
+  return DEFAULT_AVATAR;
 }
 function escapeHTML(v){
   return String(v??"").replaceAll("&","&amp;").replaceAll("<","&lt;").replaceAll(">","&gt;").replaceAll('"',"&quot;").replaceAll("'","&#039;");
@@ -432,7 +433,7 @@ function renderMessages(){
     const mine=msg.username===username;
     const isDevMessage=!!(msg.is_dev||msg.is_dev_generated)||(devUnlocked&&mine);
     return `<div class="message" data-id="${escapeAttribute(msg.id)}">
-      <img class="message-avatar" src="${escapeAttribute(image)}" onerror="this.src='https://ui-avatars.com/api/?name=User'" alt="">
+      <img class="message-avatar" src="${escapeAttribute(image)}" onerror="this.onerror=null;this.src=DEFAULT_AVATAR" alt="">
       <div class="message-content">
         <div class="message-top"><span class="message-user">${escapeHTML(msg.username)}</span>${isDevMessage?'<span class="dev-tag">DEV</span>':""}<span class="message-time">${time}</span>${msg.pinned?'<span>📌</span>':""}${msg.edited?'<span class="message-time">(edited)</span>':""}</div>
         <div class="message-text">${escapeHTML(msg.text)}</div>
