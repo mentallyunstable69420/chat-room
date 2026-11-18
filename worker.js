@@ -630,6 +630,42 @@ export class ChatRoom extends DurableObject {
       return;
     }
 
+    if (action === "dm") {
+      const text = String(data.text || "").trim();
+      const targetSessionId = String(data.targetSessionId || "");
+      if (!text || text.length > 2000 || !targetSessionId || targetSessionId === session.sessionId) {
+        this.send(ws, { type: "error", message: "Invalid private message." });
+        return;
+      }
+      let targetSocket = null;
+      let targetSession = null;
+      for (const candidate of this.ctx.getWebSockets()) {
+        if (candidate.readyState !== WebSocket.OPEN) continue;
+        const candidateSession = this.getSession(candidate);
+        if (candidateSession && candidateSession.sessionId === targetSessionId) {
+          targetSocket = candidate;
+          targetSession = candidateSession;
+          break;
+        }
+      }
+      if (!targetSocket || !targetSession) {
+        this.send(ws, { type: "error", message: "That person is no longer online in this room." });
+        return;
+      }
+      const payload = {
+        type: "dm_message",
+        fromSessionId: session.sessionId,
+        toSessionId: targetSession.sessionId,
+        fromUsername: session.username,
+        toUsername: targetSession.username,
+        text,
+        createdAt: Date.now()
+      };
+      this.send(targetSocket, payload);
+      this.send(ws, payload);
+      return;
+    }
+
     if (action === "edit") {
       await this.editMessage(
         session,
@@ -1075,7 +1111,8 @@ export class ChatRoom extends DurableObject {
 
       members.push({
         username: session.username,
-        avatar: session.avatar || ""
+        avatar: session.avatar || "",
+        sessionId: session.sessionId
       });
     }
 
