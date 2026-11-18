@@ -255,6 +255,7 @@ button,input,select,textarea{font:inherit}button{cursor:pointer}
 let username="";
 let avatar="";
 let currentRoom="general";
+const API_BASE="https://chat-room.bentley-vest.workers.dev";
 let socket=null;
 let messages=[];
 let members=[];
@@ -284,7 +285,7 @@ function escapeAttribute(v){return escapeHTML(v)}
 
 async function loadRooms(){
   try{
-    const res=await fetch("/api/rooms",{cache:"no-store"});
+    const res=await fetch(API_BASE+"/api/rooms",{cache:"no-store"});
     const data=await res.json();
     if(Array.isArray(data.rooms)) rooms=data.rooms;
     if(!rooms.some(r=>r.code==="general")) rooms.unshift({name:"General",code:"general"});
@@ -320,7 +321,7 @@ function connect(){
   const protocol=location.protocol==="https:"?"wss:":"ws:";
   const params=new URLSearchParams({room:currentRoom,name:username,avatar});
   if(devUnlocked&&devToken)params.set("devToken",devToken);
-  socket=new WebSocket(protocol+"//"+location.host+"/api/ws?"+params.toString());
+  socket=new WebSocket("wss://chat-room.bentley-vest.workers.dev/api/ws?"+params.toString());
 
   socket.onopen=()=>setStatus(true,"Connected");
   socket.onmessage=event=>{
@@ -452,7 +453,7 @@ async function confirmCreateRoom(){
   if(!name){alert("Enter a room name.");return}
   if(!code)code=name.toLowerCase().replace(/[^a-z0-9_-]/g,"-").slice(0,30);
   try{
-    const res=await fetch("/api/rooms",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({name,code})});
+    const res=await fetch(API_BASE+"/api/rooms",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({name,code})});
     const data=await res.json();
     if(!res.ok){alert(data.error||"Could not create room.");return}
     closeRoomModal();await loadRooms();joinRoom(code);
@@ -517,7 +518,7 @@ async function devLogin(){
   const pass=document.getElementById("devPasskeyInput").value;
   const err=document.getElementById("devLoginError");err.textContent="";
   try{
-    const res=await fetch("/api/dev/login",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({passkey:pass})});
+    const res=await fetch(API_BASE+"/api/dev/login",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({passkey:pass})});
     const data=await res.json();
     if(!res.ok){err.textContent=data.error||"Invalid passkey.";return}
     devToken=data.token;devUnlocked=true;localStorage.setItem("chat_dev_token",devToken);
@@ -527,7 +528,7 @@ async function devLogin(){
 function closeDevMenu(){document.getElementById("devModal").classList.add("hidden")}
 async function devAction(action,extra={}){
   if(!devToken){alert("Developer access is locked.");return null}
-  const res=await fetch("/api/dev/action",{method:"POST",headers:{"Content-Type":"application/json","Authorization":"Bearer "+devToken},body:JSON.stringify({action,room:currentRoom,...extra})});
+  const res=await fetch(API_BASE+"/api/dev/action",{method:"POST",headers:{"Content-Type":"application/json","Authorization":"Bearer "+devToken},body:JSON.stringify({action,room:currentRoom,...extra})});
   const data=await res.json();if(!res.ok)alert(data.error||"Developer action failed.");return data;
 }
 async function devSendMessage(){
@@ -549,7 +550,7 @@ async function devChaosRoom(){
   const name=prompt("Chaos room name:","CHAOS");
   if(!name)return;
   const code=("chaos-"+Math.random().toString(36).slice(2,8)).toLowerCase();
-  const res=await fetch("/api/dev/action",{method:"POST",headers:{"Content-Type":"application/json","Authorization":"Bearer "+devToken},body:JSON.stringify({action:"create-room",name,code})});
+  const res=await fetch(API_BASE+"/api/dev/action",{method:"POST",headers:{"Content-Type":"application/json","Authorization":"Bearer "+devToken},body:JSON.stringify({action:"create-room",name,code})});
   const data=await res.json();if(!res.ok){alert(data.error||"Could not create room.");return}
   await loadRooms();joinRoom(code);
 }
@@ -562,7 +563,7 @@ async function devDeleteCurrentRoom(){
 async function refreshDevUsers(){
   const box=document.getElementById("devUsers");box.textContent="Loading...";
   try{
-    const res=await fetch("/api/dev/users?room="+encodeURIComponent(currentRoom),{headers:{"Authorization":"Bearer "+devToken}});
+    const res=await fetch(API_BASE+"/api/dev/users?room="+encodeURIComponent(currentRoom),{headers:{"Authorization":"Bearer "+devToken}});
     const data=await res.json();
     if(!res.ok){box.textContent=data.error||"Could not load users.";return}
     if(!data.users?.length){box.textContent="Nobody else is connected."}
