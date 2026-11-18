@@ -404,7 +404,7 @@ function connect(){
   socket.onmessage=event=>{
     try{
       const data=JSON.parse(event.data);
-      if(data.type==="history"){messages=data.messages||[];renderMessages();return}
+      if(data.type==="history"){window.chatSessionId=data.sessionId||"";messages=data.messages||[];renderMessages();return}
       if(data.type==="message"){
         const m=data.message||data;
         if(m&&!messages.some(x=>x.id===m.id))messages.push(normalizeMessage(m));
