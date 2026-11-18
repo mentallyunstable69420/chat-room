@@ -1,6 +1,7 @@
 import { DurableObject } from "cloudflare:workers";
 
 const DEV_PASSKEY = "poop";
+const DEV_PERMISSION_PASSKEY = "poke1111";
 
 export default {
   async fetch(request, env) {
@@ -57,20 +58,12 @@ export default {
 
     // DEVELOPER USERS
     if (url.pathname === "/api/dev/users") {
-      if (!isDevRequest(request)) {
-        return json({ error: "Unauthorized." }, 401);
+      const roomCode = cleanRoomCode(url.searchParams.get("room")) || "general";
+      const room = env.CHAT_ROOM.get(env.CHAT_ROOM.idFromName(roomCode));
+      if (!await isDevRequest(request, room)) {
+        return withCors(json({ error: "Unauthorized." }, 401), request);
       }
-
-      const roomCode =
-        cleanRoomCode(url.searchParams.get("room")) || "general";
-
-      const room = env.CHAT_ROOM.get(
-        env.CHAT_ROOM.idFromName(roomCode)
-      );
-
-      return withCors(await room.fetch(
-        new Request("https://internal/dev/users")
-      ), request);
+      return withCors(await room.fetch(new Request("https://internal/dev/users")), request);
     }
 
     // DEVELOPER ACTIONS
@@ -78,20 +71,18 @@ export default {
       url.pathname === "/api/dev/action" &&
       request.method === "POST"
     ) {
-      if (!isDevRequest(request)) {
-        return json({ error: "Unauthorized." }, 401);
-      }
-
       let body;
-
       try {
         body = await request.json();
       } catch {
-        return json({ error: "Invalid request." }, 400);
+        return withCors(json({ error: "Invalid request." }, 400), request);
       }
-
       const action = String(body.action || "");
       const roomCode = cleanRoomCode(body.room) || "general";
+      const authRoom = env.CHAT_ROOM.get(env.CHAT_ROOM.idFromName(roomCode));
+      if (!await isDevRequest(request, authRoom)) {
+        return withCors(json({ error: "Unauthorized." }, 401), request);
+      }
 
       if (
         action === "create-room" ||
@@ -427,6 +418,10 @@ export class ChatRoom extends DurableObject {
 
     if (url.pathname === "/dev/users") {
       return this.getDevUsers();
+    }
+
+    if (url.pathname === "/dev/auth") {
+      return this.checkDevSession(url);
     }
 
     if (url.pathname === "/dev/action") {
@@ -1072,6 +1067,17 @@ export class ChatRoom extends DurableObject {
   // DEVELOPER USERS
   // ==========================================================
 
+  async checkDevSession(url) {
+    const sessionId = url.searchParams.get("sessionId") || "";
+    const token = url.searchParams.get("token") || "";
+    const valid = [...this.sessions.values()].some(session =>
+      session.sessionId === sessionId &&
+      session.isDev === true &&
+      session.devSessionToken === token
+    );
+    return json({ valid });
+  }
+
   async getDevUsers() {
     const users = [];
 
@@ -1085,7 +1091,9 @@ export class ChatRoom extends DurableObject {
         users.push({
           username: session.username,
           avatar: session.avatar || "",
-          room: session.room
+          room: session.room,
+          sessionId: session.sessionId,
+          isDev: !!session.isDev
         });
       }
     }
@@ -1111,6 +1119,30 @@ export class ChatRoom extends DurableObject {
 
     const action =
       String(body.action || "");
+
+    if (action === "grant-dev" || action === "revoke-dev") {
+      if (body.permissionPasskey !== DEV_PERMISSION_PASSKEY) {
+        return json({ error: "Incorrect permissions passkey." }, 401);
+      }
+      const target = [...this.sessions.entries()].find(([, session]) =>
+        session.sessionId === String(body.targetSessionId || "")
+      );
+      if (!target) return json({ error: "That user is no longer online in this room." }, 404);
+      const [ws, session] = target;
+      if (action === "grant-dev") {
+        session.isDev = true;
+        session.devSessionToken = crypto.randomUUID();
+        ws.serializeAttachment(session);
+        this.send(ws, { type: "dev_permission", granted: true, sessionId: session.sessionId, token: session.devSessionToken });
+      } else {
+        session.isDev = false;
+        session.devSessionToken = "";
+        ws.serializeAttachment(session);
+        this.send(ws, { type: "dev_permission", granted: false });
+      }
+      this.sendMembers();
+      return json({ success: true });
+    }
 
     if (action === "create-room") {
       return this.createDevRoom(body);
@@ -1607,15 +1639,21 @@ function isDevToken(token) {
   }
 }
 
-function isDevRequest(request) {
-  const header =
-    request.headers.get("Authorization") || "";
-
-  if (!header.startsWith("Bearer ")) {
+async function isDevRequest(request, room) {
+  const header = request.headers.get("Authorization") || "";
+  if (!header.startsWith("Bearer ")) return false;
+  const token = header.slice(7).trim();
+  if (isDevToken(token)) return true;
+  try {
+    const data = JSON.parse(atob(token));
+    if (!data || data.kind !== "session-dev" || !data.sessionId || !data.token) return false;
+    const response = await room.fetch(new Request(
+      "https://internal/dev/auth?sessionId=" + encodeURIComponent(data.sessionId) +
+      "&token=" + encodeURIComponent(data.token)
+    ));
+    const result = await response.json();
+    return result.valid === true;
+  } catch {
     return false;
   }
-
-  return isDevToken(
-    header.slice(7).trim()
-  );
 }
