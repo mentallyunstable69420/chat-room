@@ -114,6 +114,7 @@ button,input,select,textarea{font:inherit}button{cursor:pointer}
   <div class="rooms" id="rooms"></div>
   <div class="sidebar-bottom">
     <button class="sidebar-button" onclick="createRoom()">＋ New Room</button>
+    <button class="sidebar-button" onclick="openCodesModal()">🔐 Codes</button>
     <button class="sidebar-button" onclick="toggleTheme()">🌓 Theme</button>
     <button class="sidebar-button dev-button" onclick="openDevMenu()">🛠 Developer</button>
   </div>
@@ -158,6 +159,18 @@ button,input,select,textarea{font:inherit}button{cursor:pointer}
       <button onclick="confirmCreateRoom()">Create</button>
       <button class="secondary" onclick="closeRoomModal()">Cancel</button>
     </div>
+  </div>
+</div>
+
+<div class="modal-background hidden" id="codesModal">
+  <div class="modal">
+    <h2>🔐 Secret Codes</h2>
+    <p style="color:var(--muted)">Enter a code to reveal a message.</p>
+    <input id="secretCodeInput" placeholder="Enter secret code" maxlength="40" autocomplete="off">
+    <button onclick="submitSecretCode()" style="width:100%;margin-bottom:10px">Unlock</button>
+    <div id="secretCodeResult" class="hidden" style="white-space:pre-wrap;line-height:1.6;padding:12px;background:var(--bg);border-radius:7px;margin-bottom:12px"></div>
+    <p id="secretCodeError" style="color:var(--danger);margin:0 0 10px"></p>
+    <button class="secondary" onclick="closeCodesModal()" style="width:100%">Close</button>
   </div>
 </div>
 
@@ -438,7 +451,11 @@ async function openDevMenu(){
   document.getElementById("devModal").classList.remove("hidden");refreshDevUsers();
 }
 function closeDevLogin(){document.getElementById("devLoginModal").classList.add("hidden")}
-async function devLogin(){
+async function openCodesModal(){document.getElementById("codesModal").classList.remove("hidden");document.getElementById("secretCodeInput").value="";document.getElementById("secretCodeResult").classList.add("hidden");document.getElementById("secretCodeError").textContent="";document.getElementById("secretCodeInput").focus()}
+function closeCodesModal(){document.getElementById("codesModal").classList.add("hidden")}
+function submitSecretCode(){const input=document.getElementById("secretCodeInput");const result=document.getElementById("secretCodeResult");const error=document.getElementById("secretCodeError");if(input.value.trim().toLowerCase()==="are you ok"){result.textContent=Array(12).fill("i hate myself").join("\\n");result.classList.remove("hidden");error.textContent=""}else{result.classList.add("hidden");error.textContent="That code doesn't work."}}
+document.getElementById("secretCodeInput")?.addEventListener("keydown",function(e){if(e.key==="Enter")submitSecretCode()});
+function devLogin(){
   const pass=document.getElementById("devPasskeyInput").value;
   const err=document.getElementById("devLoginError");err.textContent="";
   try{
