@@ -781,11 +781,7 @@ export class ChatRoom extends DurableObject {
         (await this.ctx.storage.get("slowMode")) || 0
       );
 
-    const isGeneralRoom =
-      session.room === "general";
-
     if (
-      !isGeneralRoom &&
       !session.isDev &&
       slow > 0 &&
       now - session.lastMessageAt <
@@ -817,7 +813,6 @@ export class ChatRoom extends DurableObject {
       );
 
     if (
-      !isGeneralRoom &&
       locked &&
       !session.isDev
     ) {
