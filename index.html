@@ -43,7 +43,7 @@ button,input,select,textarea{font:inherit}button{cursor:pointer}
 .connection-status{margin-left:auto;font-size:12px;color:var(--muted)}
 .status-dot{display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--success);margin-right:5px}
 .status-dot.offline{background:var(--danger)}
-.messages{flex:1;overflow-y:auto;padding:20px}
+.code-hunt{display:flex;align-items:center;gap:6px;flex-wrap:wrap;padding:8px 14px;background:var(--panel);border-bottom:1px solid var(--border);font-size:11px;color:var(--muted)}.code-hunt-label{font-weight:bold;color:var(--text);letter-spacing:.4px}.code-hunt span:not(.code-hunt-label){padding:3px 7px;border:1px solid var(--border);border-radius:12px;background:var(--bg);color:var(--text);cursor:default}.messages{flex:1;overflow-y:auto;padding:20px}
 .message{display:flex;gap:12px;margin-bottom:18px;max-width:900px}
 .message-avatar{width:40px;height:40px;flex-shrink:0}
 .message-content{min-width:0}
@@ -130,6 +130,12 @@ button,input,select,textarea{font:inherit}button{cursor:pointer}
     <span id="statusText">Connecting...</span>
   </div>
 </header>
+<div class="code-hunt" aria-label="Secret code clues">
+  <span class="code-hunt-label">CODE HUNT — try these:</span>
+  <span>lost signal</span><span>echo</span><span>unfinished</span><span>midnight</span><span>blue hour</span>
+  <span>no reply</span><span>rewind</span><span>paper planes</span><span>daydream</span><span>north star</span>
+  <span>afterglow</span><span>404</span><span>static heart</span><span>open tab</span>
+</div>
 <div class="messages" id="messages" title="3am"></div>
 <div class="input-area" title="nobody knows">
   <div class="input-row">
@@ -469,7 +475,21 @@ function submitSecretCode(){
     "3am":"The nights always feel longer.",
     "nobody knows":"There is more to the story than anyone knows.",
     "static":"Sometimes everything just feels like noise.",
-    "goodbye":"Not every ending gets explained."
+    "goodbye":"Not every ending gets explained.",
+    "lost signal":"Maybe the message got lost along the way.",
+    "echo":"Some words stick around longer than they should.",
+    "unfinished":"Not every story has reached its last page.",
+    "midnight":"The world gets quieter after midnight.",
+    "blue hour":"Even the sky has its in-between moments.",
+    "no reply":"Sometimes silence says enough.",
+    "rewind":"I wish I could revisit one ordinary day.",
+    "paper planes":"Some thoughts are easier to send away.",
+    "daydream":"I spend more time in my head than I mean to.",
+    "north star":"A little direction can make a big difference.",
+    "afterglow":"Some moments stay warm long after they pass.",
+    "404":"The page you are looking for is somewhere in the past.",
+    "static heart":"Still figuring out what all this noise means.",
+    "open tab":"Some thoughts stay open in the background."
   };
   if(Object.prototype.hasOwnProperty.call(secrets,code)){
     result.textContent=secrets[code];
