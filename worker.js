@@ -223,6 +223,8 @@ export class ChatRoom extends DurableObject {
 
   async setup() {
     if (this.ready) return;
+    if (this.setupPromise) return this.setupPromise;
+    this.setupPromise = (async () => {
 
     this.ctx.storage.sql.exec(`
       CREATE TABLE IF NOT EXISTS messages (
@@ -342,6 +344,11 @@ export class ChatRoom extends DurableObject {
     );
 
     this.ready = true;
+    })().catch(error => {
+      this.setupPromise = null;
+      throw error;
+    });
+    return this.setupPromise;
   }
 
   // ==========================================================
@@ -580,6 +587,14 @@ export class ChatRoom extends DurableObject {
         }
       );
 
+      return;
+    }
+
+    try {
+      await this.setup();
+    } catch (error) {
+      console.error("WebSocket database setup failed:", error);
+      this.send(ws, { type: "error", message: "Chat is still starting. Please try again in a moment." });
       return;
     }
 
