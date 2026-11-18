@@ -428,6 +428,7 @@ function connect(){
       }
       if(data.type==="message_delete"||data.type==="delete"){messages=messages.filter(m=>m.id!==data.id);renderMessages();return}
       if(data.type==="members"){members=data.members||[];renderMembers();if(!document.getElementById("peopleModal").classList.contains("hidden"))renderPeople();return}
+      if(data.type==="profile_updated"&&data.sessionId===window.chatSessionId){username=data.username||username;avatar=data.avatar||"";localStorage.setItem("chat_username",username);localStorage.setItem("chat_avatar",avatar);updateProfile();showAnnouncement("A developer updated your profile.");return}
       if(data.type==="dm_message"){receiveDirectMessage(data);return}
       if(data.type==="dev_permission"){
         if(data.granted){
@@ -762,9 +763,31 @@ async function refreshDevUsers(){
     const res=await fetch(API_BASE+"/api/dev/users?room="+encodeURIComponent(currentRoom),{headers:{"Authorization":"Bearer "+devToken}});
     const data=await res.json();
     if(!res.ok){box.textContent=data.error||"Could not load users.";return}
-    if(!data.users?.length){box.textContent="Nobody is connected."}
-    else box.innerHTML=data.users.map(u=>`<div class="user-row"><span>${escapeHTML(u.username)} ${u.isDev?"<strong>· DEV</strong>":""}</span><div class="user-actions"><button onclick="devUserAction('kick','${escapeAttribute(u.username)}')">Kick</button><button onclick="devUserAction('timeout','${escapeAttribute(u.username)}')">Timeout</button><button onclick="devPermissionAction('${u.isDev?"revoke-dev":"grant-dev"}','${escapeAttribute(u.sessionId)}')">${u.isDev?"Remove DEV":"Grant DEV"}</button></div></div>`).join("");
+    if(!data.users?.length){box.textContent="Nobody is connected.";return}
+    box.innerHTML="";
+    data.users.forEach(u=>{
+      const row=document.createElement("div");row.className="user-row";
+      const label=document.createElement("span");label.textContent=u.username+(u.isDev?" · DEV":"");
+      const actions=document.createElement("div");actions.className="user-actions";
+      const addButton=(text,handler)=>{const button=document.createElement("button");button.textContent=text;button.addEventListener("click",handler);actions.append(button)};
+      addButton("Edit Profile",()=>devEditProfile(u.sessionId,u.username,u.avatar||""));
+      addButton("Kick",()=>devUserAction("kick",u.sessionId));
+      addButton("Timeout",()=>devUserAction("timeout",u.sessionId));
+      addButton(u.isDev?"Remove DEV":"Grant DEV",()=>devPermissionAction(u.isDev?"revoke-dev":"grant-dev",u.sessionId));
+      row.append(label,actions);box.append(row);
+    });
   }catch(e){box.textContent="Could not load users."}
+}
+async function devEditProfile(targetSessionId,currentName,currentAvatar){
+  const nextName=prompt("Set this user display name:",currentName);
+  if(nextName===null)return;
+  const nextAvatar=prompt("Set their profile picture URL (leave blank for the default avatar):",currentAvatar||"");
+  if(nextAvatar===null)return;
+  const name=nextName.trim();const avatarUrl=nextAvatar.trim();
+  if(!name){alert("Display name cannot be empty.");return}
+  if(avatarUrl&&!avatarUrl.startsWith("https://")&&!avatarUrl.startsWith("http://")){alert("Profile picture URL must start with http:// or https://.");return}
+  const result=await devAction("edit-profile",{targetSessionId,username:name.slice(0,24),avatar:avatarUrl.slice(0,500)});
+  if(result?.success){showAnnouncement("Profile updated.");refreshDevUsers()}
 }
 async function devPermissionAction(action,targetSessionId){
   const permissionPasskey=prompt("Enter the developer-permissions passkey:");
@@ -772,7 +795,7 @@ async function devPermissionAction(action,targetSessionId){
   const result=await devAction(action,{targetSessionId,permissionPasskey});
   if(result?.success){showAnnouncement(action==="grant-dev"?"DEV access granted for this session.":"DEV access removed.");refreshDevUsers()}
 }
-async function devUserAction(action,target){await devAction(action,{target,seconds:60});refreshDevUsers()}
+async function devUserAction(action,targetSessionId){await devAction(action,{targetSessionId,seconds:60});refreshDevUsers()}
 async function devEffect(effect){await devAction("effect",{effect})}
 function showAnnouncement(text){
   const el=document.createElement("div");
