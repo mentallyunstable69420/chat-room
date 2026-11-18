@@ -453,7 +453,7 @@ async function openDevMenu(){
 function closeDevLogin(){document.getElementById("devLoginModal").classList.add("hidden")}
 function openCodesModal(){document.getElementById("codesModal").classList.remove("hidden");document.getElementById("secretCodeInput").value="";document.getElementById("secretCodeResult").classList.add("hidden");document.getElementById("secretCodeError").textContent="";document.getElementById("secretCodeInput").focus()}
 function closeCodesModal(){document.getElementById("codesModal").classList.add("hidden")}
-function submitSecretCode(){const input=document.getElementById("secretCodeInput");const result=document.getElementById("secretCodeResult");const error=document.getElementById("secretCodeError");if(input.value.trim().toLowerCase()==="are you ok"){result.textContent=Array(12).fill("i hate myself").join("\\n");result.classList.remove("hidden");error.textContent=""}else{result.classList.add("hidden");error.textContent="That code doesn't work."}}
+function submitSecretCode(){const input=document.getElementById("secretCodeInput");const result=document.getElementById("secretCodeResult");const error=document.getElementById("secretCodeError");if(input.value.trim().toLowerCase()==="are you ok"){result.textContent=Array(12).fill("i hate myself").join("\n");result.classList.remove("hidden");error.textContent=""}else{result.classList.add("hidden");error.textContent="That code doesn't work."}}
 async function devLogin(){
   const pass=document.getElementById("devPasskeyInput").value;
   const err=document.getElementById("devLoginError");err.textContent="";
