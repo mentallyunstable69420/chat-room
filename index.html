@@ -42,7 +42,8 @@ button,input,select,textarea{font:inherit}button{cursor:pointer}
 .connection-status{margin-left:auto;font-size:12px;color:var(--muted)}
 .status-dot{display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--success);margin-right:5px}
 .status-dot.offline{background:var(--danger)}
-.code-hunt{display:flex;align-items:center;gap:6px;flex-wrap:wrap;padding:8px 14px;background:var(--panel);border-bottom:1px solid var(--border);font-size:11px;color:var(--muted)}.code-hunt-label{font-weight:bold;color:var(--text);letter-spacing:.4px}.code-hunt span:not(.code-hunt-label){padding:3px 7px;border:1px solid var(--border);border-radius:12px;background:var(--bg);color:var(--text);cursor:default}.messages{flex:1;overflow-y:auto;padding:20px}
+.code-hunt{display:flex;align-items:center;gap:6px;flex-wrap:wrap;padding:8px 14px;background:var(--panel);border-bottom:1px solid var(--border);font-size:11px;color:var(--muted)}.code-hunt-label{font-weight:bold;color:var(--text);letter-spacing:.4px}.code-hunt span:not(.code-hunt-label){padding:3px 7px;border:1px solid var(--border);border-radius:12px;background:var(--bg);color:var(--text);cursor:default}.general-warning{padding:10px 14px;background:#4a2b20;color:#ffe2d5;border-bottom:1px solid #9b5945;font-size:13px;font-weight:600;text-align:center}.general-warning.hidden{display:none}
+.messages{flex:1;overflow-y:auto;padding:20px}
 .message{display:flex;gap:12px;margin-bottom:18px;max-width:900px}
 .message-avatar{width:40px;height:40px;flex-shrink:0}
 .message-content{min-width:0}
@@ -135,6 +136,7 @@ button,input,select,textarea{font:inherit}button{cursor:pointer}
   <span>no reply</span><span>rewind</span><span>paper planes</span><span>daydream</span><span>north star</span>
   <span>afterglow</span><span>404</span><span>static heart</span><span>open tab</span>
 </div>
+<div class="general-warning" id="generalWarning" role="status">General chat doesn't work — use another room instead.</div>
 <div class="messages" id="messages" title="3am"></div>
 <div class="input-area" title="nobody knows">
   <div class="input-row">
@@ -433,6 +435,8 @@ function joinRoom(code){
   const room=rooms.find(r=>r.code===code);if(!room)return;
   if(code===currentRoom){unread[code]=0;renderRooms();return}
   currentRoom=code;unread[code]=0;messages=[];members=[];
+  const generalWarning=document.getElementById("generalWarning");
+  if(generalWarning)generalWarning.classList.toggle("hidden",code!=="general");
   chatTitle.textContent="# "+room.name;messageInput.placeholder="Message #"+room.name;
   renderMessages();renderMembers();renderRooms();connect();
   document.getElementById("sidebar").classList.remove("open");
