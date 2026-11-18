@@ -15,6 +15,15 @@ body.light{
   --bg:#f3f4f6;--sidebar:#fff;--panel:#fff;--panel2:#e5e7eb;
   --text:#111827;--muted:#6b7280;--border:#d1d5db;
 }
+body.packers{
+  --bg:#101c17;--sidebar:#14251d;--panel:#20372b;--panel2:#2b4938;
+  --text:#f8f4e8;--muted:#c4cbbf;--accent:#ffb612;--accent-hover:#e5a000;
+  --border:#355542;--success:#ffb612;
+}
+body.packers .sidebar-header{border-bottom:2px solid #ffb612}
+body.packers .chat-header{box-shadow:inset 0 3px 0 #ffb612}
+body.packers .room.active{color:#14251d;font-weight:bold}
+body.packers .sidebar-button:hover{outline:1px solid #ffb612}
 body{margin:0;background:var(--bg);color:var(--text);font-family:Arial,Helvetica,sans-serif;height:100vh;overflow:hidden}
 .maintenance-notice{width:100%;padding:13px 18px;background:#3b241f;color:#ffe4dc;border-bottom:1px solid #8b4a3d;text-align:center;font-size:14px;line-height:1.4;font-weight:600}
 body{display:flex;flex-direction:column}
@@ -546,8 +555,23 @@ async function confirmCreateRoom(){
     document.getElementById("roomNameInput").value="";document.getElementById("roomCodeInput").value="";
   }catch(e){alert("Could not create room.")}
 }
-function toggleTheme(){document.body.classList.toggle("light");localStorage.setItem("chat_theme",document.body.classList.contains("light")?"light":"dark")}
-function loadTheme(){if(localStorage.getItem("chat_theme")==="light")document.body.classList.add("light")}
+function setTheme(theme){
+  document.body.classList.remove("light","packers");
+  if(theme==="light")document.body.classList.add("light");
+  if(theme==="packers")document.body.classList.add("packers");
+  localStorage.setItem("chat_theme",theme);
+}
+function toggleTheme(){
+  const current=localStorage.getItem("chat_theme")||"dark";
+  const next=current==="dark"?"light":current==="light"?"packers":"dark";
+  setTheme(next);
+  const names={dark:"Dark",light:"Light",packers:"Green Bay Packers"};
+  showAnnouncement("Theme changed to "+names[next]+".");
+}
+function loadTheme(){
+  const saved=localStorage.getItem("chat_theme")||"dark";
+  setTheme(["dark","light","packers"].includes(saved)?saved:"dark");
+}
 function toggleSidebar(){document.getElementById("sidebar").classList.toggle("open")}
 document.addEventListener("visibilitychange",()=>{if(!document.hidden){unread[currentRoom]=0;renderRooms();updatePageTitle()}});
 function updatePageTitle(){const n=Object.values(unread).reduce((a,b)=>a+b,0);document.title=n?`(${n}) Chat Room`:"Chat Room"}
