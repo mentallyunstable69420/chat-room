@@ -5,6 +5,9 @@ const DEV_PASSKEY = "password";
 export default {
   async fetch(request, env) {
     const url = new URL(request.url);
+    if (request.method === "OPTIONS") {
+      return new Response(null, { status: 204, headers: corsHeaders("https://afterhours-chat.pages.dev") });
+    }
 
     // ROOM LIST
     if (url.pathname === "/api/rooms") {
@@ -12,7 +15,7 @@ export default {
         env.CHAT_ROOM.idFromName("__ROOM_LOBBY__")
       );
 
-      return lobby.fetch(
+      return withCors(await lobby.fetch(
         new Request("https://internal/api/rooms", {
           method: request.method,
           body:
@@ -21,7 +24,7 @@ export default {
               : undefined,
           headers: request.headers
         })
-      );
+      ), request);
     }
 
     // DEVELOPER LOGIN
@@ -65,9 +68,9 @@ export default {
         env.CHAT_ROOM.idFromName(roomCode)
       );
 
-      return room.fetch(
+      return withCors(await room.fetch(
         new Request("https://internal/dev/users")
-      );
+      ), request);
     }
 
     // DEVELOPER ACTIONS
@@ -98,7 +101,7 @@ export default {
           env.CHAT_ROOM.idFromName("__ROOM_LOBBY__")
         );
 
-        return lobby.fetch(
+        return withCors(await lobby.fetch(
           new Request("https://internal/dev/action", {
             method: "POST",
             headers: {
@@ -106,14 +109,14 @@ export default {
             },
             body: JSON.stringify(body)
           })
-        );
+        ), request);
       }
 
       const room = env.CHAT_ROOM.get(
         env.CHAT_ROOM.idFromName(roomCode)
       );
 
-      return room.fetch(
+      return withCors(await room.fetch(
         new Request("https://internal/dev/action", {
           method: "POST",
           headers: {
@@ -121,7 +124,7 @@ export default {
           },
           body: JSON.stringify(body)
         })
-      );
+      ), request);
     }
 
     // HISTORY
@@ -133,9 +136,9 @@ export default {
         env.CHAT_ROOM.idFromName(roomCode)
       );
 
-      return room.fetch(
+      return withCors(await room.fetch(
         new Request("https://internal/api/history")
-      );
+      ), request);
     }
 
     // WEBSOCKET
@@ -1554,6 +1557,18 @@ function cleanAvatar(v) {
   return "";
 }
 
+function corsHeaders(origin) {
+  return { "Access-Control-Allow-Origin": origin, "Access-Control-Allow-Methods": "GET, POST, OPTIONS", "Access-Control-Allow-Headers": "Content-Type, Authorization", "Access-Control-Max-Age": "86400", "Vary": "Origin" };
+}
+
+function withCors(response, request) {
+  const headers = new Headers(response.headers);
+  if (request.headers.get("Origin") === "https://afterhours-chat.pages.dev") {
+    for (const [key, value] of Object.entries(corsHeaders("https://afterhours-chat.pages.dev"))) headers.set(key, value);
+  }
+  return new Response(response.body, { status: response.status, statusText: response.statusText, headers });
+}
+
 function json(
   data,
   status = 200
@@ -1566,7 +1581,8 @@ function json(
         "Content-Type":
           "application/json",
         "Cache-Control":
-          "no-store"
+          "no-store",
+        ...corsHeaders("${origin}")
       }
     }
   );
