@@ -534,6 +534,7 @@ export class ChatRoom extends DurableObject {
           server.send(
             JSON.stringify({
               type: "history",
+              sessionId: session.sessionId,
               messages: this.getMessages()
             })
           );
