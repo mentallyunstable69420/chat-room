@@ -37,11 +37,11 @@ export default {
       try {
         body = await request.json();
       } catch {
-        return json({ error: "Invalid request." }, 400);
+        return withCors(json({ error: "Invalid request." }, 400), request);
       }
 
       if (body.passkey !== DEV_PASSKEY) {
-        return json({ error: "Invalid passkey." }, 401);
+        return withCors(json({ error: "Invalid passkey." }, 401), request);
       }
 
       const token = btoa(
@@ -52,7 +52,7 @@ export default {
         })
       );
 
-      return json({ token });
+      return withCors(json({ token }), request);
     }
 
     // DEVELOPER USERS
