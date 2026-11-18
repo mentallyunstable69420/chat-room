@@ -208,6 +208,10 @@ button,input,select,textarea{font:inherit}button{cursor:pointer}
         <span>quiet hours</span><span>half awake</span><span>old playlist</span><span>window seat</span>
         <span>far away</span><span>small victories</span><span>second chances</span><span>ghost notes</span>
         <span>soft reset</span><span>somewhere else</span>
+        <span>unsent</span><span>spare room</span><span>last seen</span><span>behind glass</span>
+        <span>wrong time</span><span>draft folder</span><span>no audience</span><span>from the dev</span>
+        <span>read this twice</span><span>quiet kid</span><span>blue screen</span><span>stay a while</span>
+        <span>not a phase</span><span>little window</span>
       </div>
     </div>
     <input id="secretCodeInput" placeholder="Enter secret code" maxlength="40" autocomplete="off" onkeydown="if(event.key==='Enter')submitSecretCode()">
@@ -700,7 +704,21 @@ function submitSecretCode(){
     "second chances":"I wish I could forgive myself for things I still think about.",
     "ghost notes":"People move on, but the things they said can stay with you.",
     "soft reset":"I wish I could quiet my mind for a minute and just feel okay.",
-    "somewhere else":"Sometimes I imagine being somewhere nobody expects me to pretend I am okay."
+    "somewhere else":"Sometimes I imagine being somewhere nobody expects me to pretend I am okay.",
+    "unsent":"I have whole conversations in my head that never make it past the typing stage.",
+    "spare room":"I made a little space here for the thoughts that do not fit anywhere else.",
+    "last seen":"Sometimes I wonder which version of me people remember when I am not around.",
+    "behind glass":"I can see everyone getting on with life. Some days I just feel a little removed from it.",
+    "wrong time":"I always seem to find the right words about three hours after the moment has passed.",
+    "draft folder":"There are things in my head I have rewritten a hundred times and still cannot send.",
+    "no audience":"Not everything I write is meant to be seen. Some of it just needs somewhere to exist.",
+    "from the dev":"I built this because I wanted a corner of the internet that felt a little less loud. If you found it, I hope it feels like yours too.",
+    "read this twice":"You do not have to turn every rough day into a lesson. Sometimes it is just a rough day.",
+    "quiet kid":"I am not always quiet because I have nothing to say. Sometimes I am still figuring out how to say it.",
+    "blue screen":"My brain has about seventeen tabs open, and none of them are playing the music I expected.",
+    "stay a while":"You do not have to be interesting here. You can just exist, read a few messages, and take your time.",
+    "not a phase":"Maybe I am still becoming someone I understand. I think that is allowed.",
+    "little window":"This site is small on purpose. A little window, not the whole world."
   };
   if(Object.prototype.hasOwnProperty.call(secrets,code)){
     result.textContent=secrets[code];
