@@ -455,7 +455,7 @@ function connect(){
       if(data.type==="error"){setStatus(!!socket&&socket.readyState===WebSocket.OPEN,"Connected · "+(data.message||"Request failed"));return}
     }catch(e){console.error(e)}
   };
-  socket.onclose=()=>{setStatus(false,"Disconnected");clearTimeout(reconnectTimer);reconnectTimer=setTimeout(connect,2500)};
+  socket.onclose=event=>{setStatus(false,event.code===4001?"Disconnected · kicked":event.code===4002?"Timed out":"Disconnected");clearTimeout(reconnectTimer);if(event.code===4001||event.code===4002)return;reconnectTimer=setTimeout(connect,2500)};
   socket.onerror=()=>setStatus(false,"Connection error");
 }
 function normalizeMessage(m){
