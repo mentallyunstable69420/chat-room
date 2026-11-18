@@ -1184,11 +1184,12 @@ export class ChatRoom extends DurableObject {
       if (body.permissionPasskey !== DEV_PERMISSION_PASSKEY) {
         return json({ error: "Incorrect permissions passkey." }, 401);
       }
-      const target = [...this.sessions.entries()].find(([, session]) =>
-        session.sessionId === String(body.targetSessionId || "")
+      const target = [...this.ctx.getWebSockets()].map(ws => ({ ws, session: this.getSession(ws) })).find(item =>
+        item.session && item.session.sessionId === String(body.targetSessionId || "")
       );
       if (!target) return json({ error: "That user is no longer online in this room." }, 404);
-      const [ws, session] = target;
+      const { ws, session } = target;
+      this.sessions.set(ws, session);
       if (action === "grant-dev") {
         session.isDev = true;
         session.devSessionToken = crypto.randomUUID();
@@ -1200,10 +1201,28 @@ export class ChatRoom extends DurableObject {
         ws.serializeAttachment(session);
         this.send(ws, { type: "dev_permission", granted: false });
       }
-      this.sendMembers();
+      await this.sendMembers();
       return json({ success: true });
     }
 
+    if (action === "edit-profile") {
+      const targetSessionId = String(body.targetSessionId || "");
+      const target = [...this.ctx.getWebSockets()].map(ws => ({ ws, session: this.getSession(ws) })).find(item =>
+        item.session && item.session.sessionId === targetSessionId
+      );
+      if (!target) return json({ error: "That user is no longer online in this room." }, 404);
+      const { ws, session } = target;
+      const username = cleanName(body.username);
+      if (!username) return json({ error: "Display name cannot be empty." }, 400);
+      const avatar = cleanAvatar(body.avatar);
+      session.username = username;
+      session.avatar = avatar;
+      this.sessions.set(ws, session);
+      ws.serializeAttachment(session);
+      this.send(ws, { type: "profile_updated", sessionId: session.sessionId, username, avatar });
+      await this.sendMembers();
+      return json({ success: true, username, avatar });
+    }
     if (action === "create-room") {
       return this.createDevRoom(body);
     }
@@ -1331,8 +1350,8 @@ export class ChatRoom extends DurableObject {
       action === "kick" ||
       action === "timeout"
     ) {
-      const target =
-        cleanName(body.target);
+      const targetSessionId = String(body.targetSessionId || "");
+      const targetName = cleanName(body.target);
 
       const seconds =
         Math.max(
@@ -1351,7 +1370,7 @@ export class ChatRoom extends DurableObject {
 
         if (
           !session ||
-          session.username !== target
+          (targetSessionId ? session.sessionId !== targetSessionId : session.username !== targetName)
         ) {
           continue;
         }
