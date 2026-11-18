@@ -28,6 +28,23 @@ export default {
       ), request);
     }
 
+    // LIVE ROOM ACTIVITY COUNTS
+    if (url.pathname === "/api/room-activity" && request.method === "GET") {
+      const lobby = env.CHAT_ROOM.get(env.CHAT_ROOM.idFromName("__ROOM_LOBBY__"));
+      const roomsResponse = await lobby.fetch(new Request("https://internal/api/rooms"));
+      const roomsData = await roomsResponse.json();
+      const roomList = Array.isArray(roomsData.rooms) ? roomsData.rooms : [];
+      const entries = await Promise.all(roomList.map(async roomInfo => {
+        try {
+          const room = env.CHAT_ROOM.get(env.CHAT_ROOM.idFromName(roomInfo.code));
+          const response = await room.fetch(new Request("https://internal/room/activity"));
+          const data = await response.json();
+          return [roomInfo.code, Number(data.count || 0)];
+        } catch { return [roomInfo.code, 0]; }
+      }));
+      return withCors(json({ counts: Object.fromEntries(entries) }), request);
+    }
+
     // DEVELOPER LOGIN
     if (
       url.pathname === "/api/dev/login" &&
@@ -414,6 +431,11 @@ export class ChatRoom extends DurableObject {
       request.method === "POST"
     ) {
       return this.createRoom(request);
+    }
+
+    if (url.pathname === "/room/activity") {
+      const count = this.ctx.getWebSockets().filter(ws => ws.readyState === WebSocket.OPEN).length;
+      return json({ count });
     }
 
     if (url.pathname === "/dev/users") {
